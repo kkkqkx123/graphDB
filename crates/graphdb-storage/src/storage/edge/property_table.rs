@@ -1,16 +1,22 @@
 //! Property Table for Edges
 //!
-//! Stores edge properties using row-oriented storage.
-//! Each property record is a serialized byte sequence, enabling fast access
-//! and simplified property updates without re-encoding.
+//! Stores edge properties using row-oriented storage with MVCC support.
+//! Each property record includes create_ts and delete_ts for version tracking,
+//! enabling time-travel queries and garbage collection of expired versions.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::{Cursor, Read};
 
 use crate::core::{DataType, DateValue, StorageError, StorageResult, Value};
+use crate::core::types::Timestamp;
 use crate::storage::naming::NameIndexer;
 use crate::storage::persistence::{read_header, read_u32_le, section, write_header};
 use crate::storage::types::PropertyId;
+
+pub use super::property_schema::{
+    PropertySchema, PropertyRecord, PropertyCompactionStats,
+    PROP_OFFSET_NONE, prop_offset_to_index, prop_index_to_offset,
+};
 
 // Varint encoding for compact string lengths
 fn encode_varint(mut value: u32, buffer: &mut Vec<u8>) {
@@ -38,56 +44,15 @@ fn decode_varint(cursor: &mut Cursor<&[u8]>) -> StorageResult<u32> {
     Ok(result)
 }
 
-/// Sentinel value meaning "no properties"
-pub const PROP_OFFSET_NONE: u32 = 0;
-
-/// Convert a property offset to a row index
-/// Offset 0 is the sentinel for "no properties", so row index = offset - 1
-pub fn prop_offset_to_index(offset: u32) -> Option<usize> {
-    if offset == PROP_OFFSET_NONE {
-        return None;
-    }
-    Some((offset - 1) as usize)
-}
-
-/// Convert a row index to a property offset
-/// Row index 0 corresponds to offset 1 (since offset 0 is the sentinel)
-pub fn prop_index_to_offset(index: usize) -> u32 {
-    (index + 1) as u32
-}
-
-#[derive(Debug, Clone)]
-pub struct PropertySchema {
-    pub name: String,
-    pub prop_id: i32,
-    pub data_type: DataType,
-    pub nullable: bool,
-}
-
-impl PropertySchema {
-    pub fn new(name: String, prop_id: i32, data_type: DataType) -> Self {
-        Self {
-            name,
-            prop_id,
-            data_type,
-            nullable: false,
-        }
-    }
-
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        self.nullable = nullable;
-        self
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct PropertyTable {
     schema: Vec<PropertySchema>,
     name_indexer: NameIndexer,
-    buffer: Vec<u8>,                       // single contiguous buffer
-    row_offsets: Vec<Option<(usize, usize)>>, // (offset, size) or None if deleted
+    records: Vec<Option<PropertyRecord>>,     // row_index → PropertyRecord with timestamps
+    buffer: Vec<u8>,                          // single contiguous buffer (for data)
     row_count: usize,
     free_list: Vec<u32>,
+    tombstones: HashMap<u32, Timestamp>,      // row_offset → delete_ts (for GC tracking)
 }
 
 impl PropertyTable {
@@ -95,10 +60,11 @@ impl PropertyTable {
         Self {
             schema: Vec::new(),
             name_indexer: NameIndexer::new(),
+            records: Vec::new(),
             buffer: Vec::new(),
-            row_offsets: Vec::new(),
             row_count: 0,
             free_list: Vec::new(),
+            tombstones: HashMap::new(),
         }
     }
 
@@ -106,10 +72,11 @@ impl PropertyTable {
         Self {
             schema: Vec::new(),
             name_indexer: NameIndexer::with_capacity(capacity),
+            records: Vec::with_capacity(capacity),
             buffer: Vec::with_capacity(capacity * 128),
-            row_offsets: Vec::with_capacity(capacity),
             row_count: 0,
             free_list: Vec::with_capacity(capacity / 10),
+            tombstones: HashMap::with_capacity(capacity / 100),
         }
     }
 
@@ -348,65 +315,89 @@ impl PropertyTable {
         }
     }
 
-    pub fn insert(&mut self, values: &[(String, Value)]) -> StorageResult<u32> {
-        let record = self.serialize_row(values)?;
-        let record_size = record.len();
+    pub fn insert(&mut self, values: &[(String, Value)], create_ts: Timestamp) -> StorageResult<u32> {
+        let record_data = self.serialize_row(values)?;
 
-        let offset = if let Some(free) = self.free_list.pop() {
-            let row_idx = (free - 1) as usize;
-            let buf_offset = self.buffer.len();
-            self.buffer.extend_from_slice(&record);
-            self.row_offsets[row_idx] = Some((buf_offset, record_size));
-            free
+        let record = PropertyRecord::new(record_data.clone(), create_ts);
+
+        let offset = if let Some(free_idx) = self.free_list.pop() {
+            let row_idx = (free_idx - 1) as usize;
+            self.records[row_idx] = Some(record);
+            free_idx
         } else {
-            let buf_offset = self.buffer.len();
-            self.buffer.extend_from_slice(&record);
-            let new_offset = prop_index_to_offset(self.row_count);
-            self.row_offsets.push(Some((buf_offset, record_size)));
+            let row_idx = self.records.len();
+            let row_offset = prop_index_to_offset(row_idx);
+            self.records.push(Some(record));
             self.row_count += 1;
-            new_offset
+            row_offset
         };
 
         Ok(offset)
     }
 
-    pub fn update(&mut self, offset: u32, values: &[(String, Value)]) -> StorageResult<()> {
+    pub fn update(&mut self, offset: u32, values: &[(String, Value)], ts: Timestamp) -> StorageResult<u32> {
+        // Mark old record as deleted
         let row_idx = prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
-        if row_idx >= self.row_count {
+        if row_idx >= self.records.len() {
             return Err(StorageError::invalid_offset(offset));
         }
 
-        let (buf_offset, _) = self.row_offsets[row_idx].ok_or_else(|| StorageError::invalid_offset(offset))?;
-        let current_data = &self.buffer[buf_offset..];
-        let current_values = self.deserialize_row(current_data)?;
-        let mut merged_values: Vec<(String, Option<Value>)> = current_values;
-
-        for (name, value) in values {
-            if let Some(pos) = merged_values.iter().position(|(n, _)| n == name) {
-                merged_values[pos] = (name.clone(), Some(value.clone()));
-            } else {
-                merged_values.push((name.clone(), Some(value.clone())));
+        if let Some(record) = &mut self.records[row_idx] {
+            if record.delete_ts.is_none() {
+                record.delete_ts = Some(ts);
+                self.tombstones.insert(offset, ts);
             }
         }
 
-        let new_record = self.serialize_row_with_nulls(&merged_values)?;
-        let new_size = new_record.len();
-        let new_buf_offset = self.buffer.len();
-        self.buffer.extend_from_slice(&new_record);
-        self.row_offsets[row_idx] = Some((new_buf_offset, new_size));
-
-        Ok(())
+        // Insert new record with same structure
+        let merged_values = self.get_for_update(offset, values)?;
+        self.insert(&merged_values, ts)
     }
 
-    pub fn get(&self, offset: u32) -> Option<Vec<(String, Option<Value>)>> {
+    fn get_for_update(&self, offset: u32, updates: &[(String, Value)]) -> StorageResult<Vec<(String, Value)>> {
+        let mut result = Vec::new();
+
+        if let Some(current_props) = self.get(offset, None) {
+            for (name, opt_value) in current_props {
+                if let Some((_, new_val)) = updates.iter().find(|(k, _)| k == &name) {
+                    result.push((name, new_val.clone()));
+                } else if let Some(old_val) = opt_value {
+                    result.push((name, old_val));
+                }
+            }
+
+            // Add any new properties from updates that weren't in current
+            for (name, val) in updates {
+                if !result.iter().any(|(n, _)| n == name) {
+                    result.push((name.clone(), val.clone()));
+                }
+            }
+        } else {
+            result = updates.to_vec();
+        }
+
+        Ok(result)
+    }
+
+    pub fn get(&self, offset: u32, query_ts: Option<Timestamp>) -> Option<Vec<(String, Option<Value>)>> {
         let row_idx = prop_offset_to_index(offset)?;
-        if row_idx >= self.row_count {
+        if row_idx >= self.records.len() {
             return None;
         }
 
-        let (buf_offset, _) = self.row_offsets[row_idx]?;
-        let record_data = &self.buffer[buf_offset..];
-        self.deserialize_row(record_data).ok()
+        let record = self.records[row_idx].as_ref()?;
+
+        // Check visibility based on create_ts and delete_ts
+        let visible = match query_ts {
+            None => record.delete_ts.is_none(),  // Current version
+            Some(ts) => record.is_visible_at(ts), // Time-travel query
+        };
+
+        if !visible {
+            return None;
+        }
+
+        self.deserialize_row(&record.data).ok()
     }
 
     pub fn set_property(
@@ -414,9 +405,10 @@ impl PropertyTable {
         offset: u32,
         name: &str,
         value: Option<Value>,
+        ts: Timestamp,
     ) -> StorageResult<()> {
         let row_idx = prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
-        if row_idx >= self.row_count {
+        if row_idx >= self.records.len() {
             return Err(StorageError::invalid_offset(offset));
         }
 
@@ -425,21 +417,28 @@ impl PropertyTable {
         }
 
         let mut merged_values: Vec<(String, Option<Value>)> = Vec::new();
-        if let Some(props) = self.get(offset) {
+        if let Some(props) = self.get(offset, None) {
             for (n, v) in props {
-                if n != name {
-                    merged_values.push((n, v));
-                } else {
+                if n == name {
                     merged_values.push((n, value.clone()));
+                } else {
+                    merged_values.push((n, v));
                 }
             }
         }
 
         let new_record = self.serialize_row_with_nulls(&merged_values)?;
-        let new_size = new_record.len();
-        let new_buf_offset = self.buffer.len();
-        self.buffer.extend_from_slice(&new_record);
-        self.row_offsets[row_idx] = Some((new_buf_offset, new_size));
+
+        // Mark old as deleted and insert new
+        if let Some(record) = &mut self.records[row_idx] {
+            if record.delete_ts.is_none() {
+                record.delete_ts = Some(ts);
+                self.tombstones.insert(offset, ts);
+            }
+        }
+
+        let new_record_obj = PropertyRecord::new(new_record, ts);
+        self.records[row_idx] = Some(new_record_obj);
 
         Ok(())
     }
@@ -449,26 +448,73 @@ impl PropertyTable {
         offset: u32,
         prop_id: PropertyId,
         value: Option<Value>,
+        ts: Timestamp,
     ) -> StorageResult<()> {
         let col_idx = prop_id.as_usize();
         if col_idx >= self.schema.len() {
             return Err(StorageError::column_not_found(format!("prop_id={}", prop_id)));
         }
 
-        self.set_property(offset, &self.schema[col_idx].name.clone(), value)
+        self.set_property(offset, &self.schema[col_idx].name.clone(), value, ts)
     }
 
+    /// Mark a property record as deleted for MVCC tracking
+    pub fn mark_deleted(&mut self, offset: u32, delete_ts: Timestamp) -> StorageResult<()> {
+        let row_idx = prop_offset_to_index(offset).ok_or_else(|| StorageError::invalid_offset(offset))?;
+        if row_idx >= self.records.len() {
+            return Ok(());  // Already deleted or doesn't exist
+        }
+
+        if let Some(record) = &mut self.records[row_idx] {
+            if record.delete_ts.is_none() {
+                record.delete_ts = Some(delete_ts);
+                self.tombstones.insert(offset, delete_ts);
+                Ok(())
+            } else {
+                Err(StorageError::invalid_operation("record already marked deleted"))
+            }
+        } else {
+            Ok(())  // Idempotent: already deleted
+        }
+    }
+
+    /// Garbage collect tombstones older than min_active_snapshot_ts
+    pub fn gc_tombstones(&mut self, min_active_snapshot_ts: Timestamp) -> u32 {
+        let mut reclaimed = 0u32;
+
+        let to_remove: Vec<u32> = self.tombstones
+            .iter()
+            .filter(|(_, &delete_ts)| delete_ts < min_active_snapshot_ts)
+            .map(|(&offset, _)| offset)
+            .collect();
+
+        for offset in to_remove {
+            if let Some(row_idx) = prop_offset_to_index(offset) {
+                if row_idx < self.records.len() {
+                    self.records[row_idx] = None;
+                    self.free_list.push(offset);
+                    self.tombstones.remove(&offset);
+                    reclaimed += 1;
+                }
+            }
+        }
+
+        reclaimed
+    }
+
+    /// Legacy delete method for backward compatibility (physical delete)
     pub fn delete(&mut self, offset: u32) -> bool {
         let row_idx = match prop_offset_to_index(offset) {
             Some(idx) => idx,
             None => return false,
         };
-        if row_idx >= self.row_count {
+        if row_idx >= self.records.len() {
             return false;
         }
 
-        self.row_offsets[row_idx] = None;
+        self.records[row_idx] = None;
         self.free_list.push(offset);
+        self.tombstones.remove(&offset);
         true
     }
 
@@ -484,6 +530,9 @@ impl PropertyTable {
         let checksum_pos = result.len();
         result.extend_from_slice(&[0u8; 4]);
 
+        // Version 2: Include MVCC support
+        result.push(2);  // version
+
         result.extend_from_slice(&(self.schema.len() as u32).to_le_bytes());
         for prop in &self.schema {
             let name_bytes = prop.name.as_bytes();
@@ -494,27 +543,37 @@ impl PropertyTable {
             result.push(if prop.nullable { 1 } else { 0 });
         }
 
-        result.extend_from_slice(&(self.row_count as u32).to_le_bytes());
+        result.extend_from_slice(&(self.records.len() as u32).to_le_bytes());
 
-        // Store buffer size and data
-        result.extend_from_slice(&(self.buffer.len() as u32).to_le_bytes());
-        result.extend_from_slice(&self.buffer);
-
-        // Store row offsets
-        result.extend_from_slice(&(self.row_offsets.len() as u32).to_le_bytes());
-        for offset_info in &self.row_offsets {
-            match offset_info {
-                Some((buf_offset, size)) => {
-                    result.push(1); // marker: has data
-                    result.extend_from_slice(&(*buf_offset as u32).to_le_bytes());
-                    result.extend_from_slice(&(*size as u32).to_le_bytes());
+        // Store each PropertyRecord with timestamps
+        for record_opt in &self.records {
+            match record_opt {
+                Some(record) => {
+                    result.push(1);  // marker: has data
+                    result.extend_from_slice(&record.create_ts.to_le_bytes());
+                    if let Some(del_ts) = record.delete_ts {
+                        result.push(1);  // marker: has delete_ts
+                        result.extend_from_slice(&del_ts.to_le_bytes());
+                    } else {
+                        result.push(0);  // marker: no delete_ts
+                    }
+                    result.extend_from_slice(&(record.data.len() as u32).to_le_bytes());
+                    result.extend_from_slice(&record.data);
                 }
                 None => {
-                    result.push(0); // marker: deleted
+                    result.push(0);  // marker: deleted
                 }
             }
         }
 
+        // Store tombstones for garbage collection tracking
+        result.extend_from_slice(&(self.tombstones.len() as u32).to_le_bytes());
+        for (offset, delete_ts) in &self.tombstones {
+            result.extend_from_slice(&offset.to_le_bytes());
+            result.extend_from_slice(&delete_ts.to_le_bytes());
+        }
+
+        // Store free list
         result.extend_from_slice(&(self.free_list.len() as u32).to_le_bytes());
         for off in &self.free_list {
             result.extend_from_slice(&off.to_le_bytes());
@@ -561,6 +620,15 @@ impl PropertyTable {
         let data = payload;
         let mut offset = 0usize;
 
+        // Read version
+        let version = if offset < data.len() {
+            let v = data[offset];
+            offset += 1;
+            v
+        } else {
+            1  // Default to v1 if not specified
+        };
+
         let schema_len = read_u32_le(data, &mut offset)? as usize;
 
         self.schema.clear();
@@ -589,34 +657,69 @@ impl PropertyTable {
             self.schema.push(prop_schema);
         }
 
-        self.row_count = read_u32_le(data, &mut offset)? as usize;
+        if version >= 2 {
+            // Load PropertyRecords with MVCC support (v2+)
+            let records_len = read_u32_le(data, &mut offset)? as usize;
+            self.records.clear();
+            self.row_count = 0;
 
-        // Load buffer
-        let buffer_len = read_u32_le(data, &mut offset)? as usize;
-        if offset + buffer_len > data.len() {
-            return Err(StorageError::deserialize_error("unexpected end of data"));
-        }
-        self.buffer = data[offset..offset + buffer_len].to_vec();
-        offset += buffer_len;
+            for _ in 0..records_len {
+                if offset >= data.len() {
+                    return Err(StorageError::deserialize_error("unexpected end of data"));
+                }
+                let marker = data[offset];
+                offset += 1;
 
-        // Load row offsets
-        let row_offsets_len = read_u32_le(data, &mut offset)? as usize;
-        self.row_offsets.clear();
-        for _ in 0..row_offsets_len {
-            if offset >= data.len() {
-                return Err(StorageError::deserialize_error("unexpected end of data"));
+                if marker == 1 {
+                    let create_ts = read_u32_le(data, &mut offset)?;
+                    let has_delete_ts = data[offset];
+                    offset += 1;
+                    let delete_ts = if has_delete_ts == 1 {
+                        Some(read_u32_le(data, &mut offset)?)
+                    } else {
+                        None
+                    };
+                    let data_len = read_u32_le(data, &mut offset)? as usize;
+                    if offset + data_len > data.len() {
+                        return Err(StorageError::deserialize_error("unexpected end of data"));
+                    }
+                    let record_data = data[offset..offset + data_len].to_vec();
+                    offset += data_len;
+
+                    let record = PropertyRecord {
+                        data: record_data,
+                        create_ts,
+                        delete_ts,
+                    };
+                    self.records.push(Some(record));
+                    self.row_count += 1;
+                } else {
+                    self.records.push(None);
+                }
             }
-            let marker = data[offset];
-            offset += 1;
-            if marker == 1 {
-                let buf_offset = read_u32_le(data, &mut offset)? as usize;
-                let size = read_u32_le(data, &mut offset)? as usize;
-                self.row_offsets.push(Some((buf_offset, size)));
-            } else {
-                self.row_offsets.push(None);
+
+            // Load tombstones for GC tracking
+            let tombstones_len = read_u32_le(data, &mut offset)? as usize;
+            self.tombstones.clear();
+            for _ in 0..tombstones_len {
+                let prop_offset = read_u32_le(data, &mut offset)?;
+                let delete_ts = read_u32_le(data, &mut offset)?;
+                self.tombstones.insert(prop_offset, delete_ts);
             }
+        } else {
+            // Backward compatibility: migrate v1 format to v2
+            // In v1, we had buffer + row_offsets instead of PropertyRecords
+            // This is a simplified migration that marks all records as create_ts=0
+            self.records.clear();
+            self.row_count = 0;
+
+            // Read old v1 format (skip this for now, or implement minimal v1 support)
+            return Err(StorageError::deserialize_error(
+                "PropertyTable v1 format is no longer supported. Please use v2 format or export/reimport data."
+            ));
         }
 
+        // Load free list
         let free_list_len = read_u32_le(data, &mut offset)? as usize;
         self.free_list.clear();
         for _ in 0..free_list_len {
@@ -627,35 +730,116 @@ impl PropertyTable {
     }
 
     pub fn compact(&mut self, valid_offsets: &HashSet<u32>) {
-        let mut new_buffer = Vec::new();
-        let mut new_row_offsets = Vec::new();
+        let mut new_records = Vec::new();
         let mut offset_mapping = std::collections::HashMap::new();
 
-        for old_row_idx in 0..self.row_count {
-            let old_offset = prop_index_to_offset(old_row_idx);
+        for (old_idx, record_opt) in self.records.iter().enumerate() {
+            let old_offset = prop_index_to_offset(old_idx);
             if valid_offsets.contains(&old_offset) {
-                if let Some((buf_offset, size)) = self.row_offsets[old_row_idx] {
-                    let new_buf_offset = new_buffer.len();
-                    new_buffer.extend_from_slice(&self.buffer[buf_offset..buf_offset + size]);
-                    new_row_offsets.push(Some((new_buf_offset, size)));
-                    offset_mapping.insert(old_offset, prop_index_to_offset(new_row_offsets.len() - 1));
+                if let Some(record) = record_opt {
+                    offset_mapping.insert(old_offset, prop_index_to_offset(new_records.len()));
+                    new_records.push(Some(record.clone()));
                 } else {
-                    new_row_offsets.push(None);
+                    new_records.push(None);
                 }
             }
         }
 
-        self.buffer = new_buffer;
-        self.row_offsets = new_row_offsets;
-        self.row_count = offset_mapping.len();
+        self.records = new_records;
+        self.row_count = self.records.iter().filter(|r| r.is_some()).count();
         self.free_list.clear();
+        self.tombstones.clear();
     }
 
     pub fn used_memory_size(&self) -> usize {
-        let mut total = self.buffer.len();
-        total += self.row_offsets.len() * std::mem::size_of::<Option<(usize, usize)>>();
+        let mut total = 0usize;
+        for record_opt in &self.records {
+            if let Some(record) = record_opt {
+                total += record.data.len();
+            }
+        }
+        total += self.records.len() * std::mem::size_of::<Option<PropertyRecord>>();
         total += std::mem::size_of::<Self>();
         total
+    }
+
+    /// Calculate compaction statistics for the property table
+    pub fn compaction_stats(&self) -> PropertyCompactionStats {
+        let tombstone_count = self.tombstones.len();
+        let live_count = self.records.iter().filter(|r| r.is_some()).count();
+
+        // Estimate reclaimable bytes from tombstoned records
+        let mut reclaimable_bytes = 0usize;
+        for (offset, _) in &self.tombstones {
+            if let Some(row_idx) = prop_offset_to_index(*offset) {
+                if row_idx < self.records.len() {
+                    if let Some(record) = &self.records[row_idx] {
+                        reclaimable_bytes += record.data.len() + std::mem::size_of::<PropertyRecord>();
+                    }
+                }
+            }
+        }
+
+        PropertyCompactionStats {
+            tombstone_count,
+            total_records: self.records.len(),
+            buffer_size: self.buffer.len(),
+            free_list_size: self.free_list.len(),
+            reclaimable_bytes,
+        }
+    }
+
+    /// Get all live records (non-deleted) with their current offsets
+    pub fn filter_live_records(&self) -> Vec<(u32, PropertyRecord)> {
+        self.records
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, record_opt)| {
+                record_opt.as_ref().map(|record| {
+                    let offset = prop_index_to_offset(idx);
+                    (offset, record.clone())
+                })
+            })
+            .collect()
+    }
+
+    /// Compact the property table by removing deleted records and rebuilding arrays
+    ///
+    /// This operation:
+    /// 1. Filters out deleted/tombstoned records not in valid_offsets
+    /// 2. Rebuilds the records array sequentially
+    /// 3. Generates offset mappings (old_offset -> new_offset)
+    /// 4. Clears the free list and tombstones
+    ///
+    /// Returns a HashMap mapping old offsets to new offsets for any external
+    /// callers that need to update their references.
+    pub fn compact_with_relocation(&mut self, valid_offsets: &HashSet<u32>) -> HashMap<u32, u32> {
+        let mut new_records = Vec::new();
+        let mut offset_mapping = HashMap::new();
+
+        // Collect live records and build mapping based on valid_offsets
+        for (old_idx, record_opt) in self.records.iter().enumerate() {
+            let old_offset = prop_index_to_offset(old_idx);
+            if valid_offsets.contains(&old_offset) {
+                if let Some(record) = record_opt {
+                    let new_offset = prop_index_to_offset(new_records.len());
+                    offset_mapping.insert(old_offset, new_offset);
+                    new_records.push(Some(record.clone()));
+                } else {
+                    new_records.push(None);
+                }
+            }
+        }
+
+        // Update row count
+        self.row_count = new_records.iter().filter(|r| r.is_some()).count();
+
+        // Clear and rebuild arrays
+        self.records = new_records;
+        self.free_list.clear();
+        self.tombstones.clear();
+
+        offset_mapping
     }
 
     /// Check if schema is suitable for fast path deserialization:
@@ -679,13 +863,12 @@ impl PropertyTable {
     #[inline]
     pub fn prefetch(&self, offset: u32) {
         if let Some(row_idx) = prop_offset_to_index(offset) {
-            if row_idx < self.row_count {
-                if let Some((buf_offset, _)) = self.row_offsets[row_idx] {
-                    // Prefetch the buffer location to L1/L2 cache
-                    // This is a volatile operation that the compiler cannot optimize away
+            if row_idx < self.records.len() {
+                if let Some(record) = &self.records[row_idx] {
+                    // Prefetch the data location to L1/L2 cache
                     #[allow(unsafe_code)]
                     unsafe {
-                        let addr = self.buffer.as_ptr().add(buf_offset) as *const u8;
+                        let addr = record.data.as_ptr() as *const u8;
                         // Use a volatile read to ensure prefetch happens
                         std::ptr::read_volatile(addr);
                     }
@@ -704,18 +887,29 @@ impl PropertyTable {
 
     /// Fast path deserialization for fixed-size schemas
     /// Skips null checks and type dispatching for 2-3x speedup
-    pub fn get_fast(&self, offset: u32) -> Option<Vec<(String, Option<Value>)>> {
+    pub fn get_fast(&self, offset: u32, query_ts: Option<Timestamp>) -> Option<Vec<(String, Option<Value>)>> {
         if !self.is_schema_fixed_size() {
-            return self.get(offset);
+            return self.get(offset, query_ts);
         }
 
         let row_idx = prop_offset_to_index(offset)?;
-        if row_idx >= self.row_count {
+        if row_idx >= self.records.len() {
             return None;
         }
 
-        let (buf_offset, _) = self.row_offsets[row_idx]?;
-        let record_data = &self.buffer[buf_offset..];
+        let record = self.records[row_idx].as_ref()?;
+
+        // Check visibility based on create_ts and delete_ts
+        let visible = match query_ts {
+            None => record.delete_ts.is_none(),
+            Some(ts) => record.is_visible_at(ts),
+        };
+
+        if !visible {
+            return None;
+        }
+
+        let record_data = &record.data;
 
         // Fast path: directly deserialize without null checks
         let mut cursor = Cursor::new(record_data);
@@ -777,14 +971,13 @@ impl PropertyTable {
 
     /// Batch retrieval of properties, sorted by offset for cache locality
     /// Returns results in original order via the provided iterator
-    pub fn get_batch<'a, I>(&'a self, offsets: I) -> Vec<Option<Vec<(String, Option<Value>)>>>
+    pub fn get_batch<'a, I>(&'a self, offsets: I, query_ts: Option<Timestamp>) -> Vec<Option<Vec<(String, Option<Value>)>>>
     where
         I: IntoIterator<Item = &'a u32>,
     {
         let offsets: Vec<_> = offsets.into_iter().collect();
         let mut indexed: Vec<_> = offsets
-            .iter()
-            .enumerate()
+            .iter().enumerate()
             .map(|(idx, offset)| (idx, **offset))
             .collect();
 
@@ -797,9 +990,9 @@ impl PropertyTable {
         }
 
         // Retrieve in sorted order
-        let mut sorted_results: Vec<_> = indexed
+        let sorted_results: Vec<_> = indexed
             .iter()
-            .map(|(_, offset)| self.get_fast(*offset).or_else(|| self.get(*offset)))
+            .map(|(_, offset)| self.get_fast(*offset, query_ts).or_else(|| self.get(*offset, query_ts)))
             .collect();
 
         // Restore original order

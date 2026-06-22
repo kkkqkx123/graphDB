@@ -36,6 +36,7 @@ pub mod labeled_mutable_csr;
 pub mod mutable_csr;
 pub mod multi_single_mutable_csr;
 pub mod property_table;
+pub mod property_schema;
 pub mod single_mutable_csr;
 pub mod bloom_filter;
 
@@ -53,6 +54,7 @@ pub use labeled_mutable_csr::{LabeledMutableCsr, LabeledMutableCsrIterator};
 pub use mutable_csr::{MutableCsr, MutableCsrIterator};
 pub use multi_single_mutable_csr::{MultiSingleMutableCsr, MultiSingleMutableCsrIterator};
 pub use property_table::PropertyTable;
+pub use property_schema::{PropertySchema, PropertyRecord, PropertyCompactionStats};
 pub use single_mutable_csr::{SingleMutableCsr, SingleMutableCsrIterator};
 
 pub use crate::core::types::INVALID_EDGE_ID;

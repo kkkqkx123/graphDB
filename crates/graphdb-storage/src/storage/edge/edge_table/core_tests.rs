@@ -1,7 +1,13 @@
 use super::*;
+use super::EdgeTableCore;
 use crate::core::types::{VertexId, DataType};
 use crate::core::Value;
 use crate::storage::types::StoragePropertyDef;
+use crate::storage::schema::ChangeDetails;
+
+// Type alias for backward compatibility with existing tests
+#[allow(dead_code)]
+type EdgeTable = EdgeTableCore;
 
 fn create_test_schema() -> EdgeSchema {
     EdgeSchema {
@@ -555,3 +561,172 @@ fn test_sequential_property_modifications() {
     assert_eq!(table.schema().schema_version, 5);
 }
 
+#[test]
+fn test_version_history_add_property() -> StorageResult<()> {
+    let schema = EdgeSchema {
+        label_id: 1,
+        label_name: "Likes".to_string(),
+        src_label: 1,
+        dst_label: 1,
+        properties: vec![],
+        oe_strategy: EdgeStrategy::Multiple,
+        ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
+    };
+    let mut table = EdgeTableCore::with_config(schema, Default::default())?;
+
+    let initial_version = table.schema.schema_version;
+    assert_eq!(initial_version, 1);
+
+    // Add a property
+    table.add_property(
+        "weight".to_string(),
+        DataType::Float,
+        true,
+    )?;
+
+    // Version should increment
+    assert_eq!(table.schema.schema_version, 2);
+
+    // Check version history was updated
+    let history = table.version_history.lock().unwrap();
+    let changes = history.change_log.get_version_changes(2);
+    assert!(changes.is_some(), "Should have changes for version 2");
+
+    let changes = changes.unwrap();
+    assert_eq!(changes.len(), 1, "Should have exactly one change");
+
+    let change = &changes[0];
+    match &change.details {
+        ChangeDetails::PropertyAdded { name, data_type, nullable, .. } => {
+            assert_eq!(name, "weight");
+            assert_eq!(*data_type, DataType::Float);
+            assert_eq!(*nullable, true);
+        }
+        _ => panic!("Expected PropertyAdded change"),
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_version_history_remove_property() -> StorageResult<()> {
+    let schema = EdgeSchema {
+        label_id: 1,
+        label_name: "Likes".to_string(),
+        src_label: 1,
+        dst_label: 1,
+        properties: vec![StoragePropertyDef::new("weight".to_string(), DataType::Float)],
+        oe_strategy: EdgeStrategy::Multiple,
+        ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
+    };
+    let mut table = EdgeTableCore::with_config(schema, Default::default())?;
+
+    // Remove the property
+    table.remove_property("weight")?;
+
+    // Version should increment to 2
+    assert_eq!(table.schema.schema_version, 2);
+
+    // Check version history was updated
+    let history = table.version_history.lock().unwrap();
+    let changes = history.change_log.get_version_changes(2);
+    assert!(changes.is_some(), "Should have changes for version 2");
+
+    let changes = changes.unwrap();
+    assert_eq!(changes.len(), 1, "Should have exactly one change");
+
+    let change = &changes[0];
+    match &change.details {
+        ChangeDetails::PropertyRemoved { name, .. } => {
+            assert_eq!(name, "weight");
+        }
+        _ => panic!("Expected PropertyRemoved change"),
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_version_history_rename_property() -> StorageResult<()> {
+    let schema = EdgeSchema {
+        label_id: 1,
+        label_name: "Follows".to_string(),
+        src_label: 1,
+        dst_label: 1,
+        properties: vec![StoragePropertyDef::new("weight".to_string(), DataType::Float)],
+        oe_strategy: EdgeStrategy::Multiple,
+        ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
+    };
+    let mut table = EdgeTableCore::with_config(schema, Default::default())?;
+
+    // Rename the property
+    table.rename_property("weight", "strength")?;
+
+    // Version should increment to 2
+    assert_eq!(table.schema.schema_version, 2);
+
+    // Check version history was updated
+    let history = table.version_history.lock().unwrap();
+    let changes = history.change_log.get_version_changes(2);
+    assert!(changes.is_some(), "Should have changes for version 2");
+
+    let changes = changes.unwrap();
+    assert_eq!(changes.len(), 1, "Should have exactly one change");
+
+    let change = &changes[0];
+    match &change.details {
+        ChangeDetails::PropertyRenamed { old_name, new_name } => {
+            assert_eq!(old_name, "weight");
+            assert_eq!(new_name, "strength");
+        }
+        _ => panic!("Expected PropertyRenamed change"),
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_version_history_multiple_changes() -> StorageResult<()> {
+    let schema = EdgeSchema {
+        label_id: 1,
+        label_name: "Interacts".to_string(),
+        src_label: 1,
+        dst_label: 1,
+        properties: vec![],
+        oe_strategy: EdgeStrategy::Multiple,
+        ie_strategy: EdgeStrategy::Multiple,
+        schema_version: 1,
+    };
+    let mut table = EdgeTableCore::with_config(schema, Default::default())?;
+
+    // Make several changes
+    table.add_property(
+        "strength".to_string(),
+        DataType::Float,
+        true,
+    )?;
+    assert_eq!(table.schema.schema_version, 2);
+
+    table.add_property(
+        "frequency".to_string(),
+        DataType::Int,
+        false,
+    )?;
+    assert_eq!(table.schema.schema_version, 3);
+
+    table.rename_property("strength", "intensity")?;
+    assert_eq!(table.schema.schema_version, 4);
+
+    // Check history
+    let history = table.version_history.lock().unwrap();
+
+    // Should have changes at versions 2, 3, and 4
+    assert!(history.change_log.get_version_changes(2).is_some());
+    assert!(history.change_log.get_version_changes(3).is_some());
+    assert!(history.change_log.get_version_changes(4).is_some());
+
+    Ok(())
+}

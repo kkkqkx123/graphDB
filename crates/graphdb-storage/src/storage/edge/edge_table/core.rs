@@ -153,55 +153,6 @@ impl EdgeTableCore {
         self.stats_manager = Some(stats);
     }
 
-    pub fn compact_and_freeze_with_physical_deletion(&mut self, ts: Timestamp, config: &crate::core::types::CompactConfig) -> usize {
-        let edge_count = self.edge_count() as usize;
-        let reserve_ratio = config.compute_reserve_ratio(edge_count, 0);
-
-        // Get minimum active snapshot for physical deletion
-        let min_active_snapshot_ts = self.mvcc.get_min_active_snapshot_ts();
-
-        let removed = self.compact_csr_only(ts, reserve_ratio);
-        self.freeze_csr_only(ts);
-
-        if config.segment_merge_enabled {
-            let stats = self.mvcc.tombstone_stats();
-            let merge_threshold = config.compute_merge_size_threshold(stats.memory_bytes);
-            // TODO: Add variant of merge_segments_with_config that uses min_active_snapshot_ts
-            // For now, fall back to regular merge
-            self.merge_segments_with_config(config.segment_merge_threshold, merge_threshold);
-        }
-
-        self.compact_properties(ts);
-
-        if let Some(stats) = &self.stats_manager {
-            let tom_stats = self.mvcc.tombstone_stats();
-            stats.record_tombstone_stats(
-                tom_stats.count as u64,
-                tom_stats.memory_bytes as u64,
-                tom_stats.oldest_delete_ts,
-                tom_stats.newest_delete_ts,
-                1,
-            );
-        }
-
-        removed
-    }
-
-    /// Rebuild segment indices after modifications. Called after freeze or merge operations.
-    /// This maintains the timestamp-based index for binary search optimization.
-    pub fn rebuild_segment_indices(&mut self) {
-        self.out_segment_index.clear();
-        for (idx, segment) in self.out_segments.iter().enumerate() {
-            self.out_segment_index.push((segment.create_ts_min, idx));
-        }
-        self.out_segment_index.sort_by_key(|k| std::cmp::Reverse(k.0));
-
-        self.in_segment_index.clear();
-        for (idx, segment) in self.in_segments.iter().enumerate() {
-            self.in_segment_index.push((segment.create_ts_min, idx));
-        }
-        self.in_segment_index.sort_by_key(|k| std::cmp::Reverse(k.0));
-    }
 
     fn base_get_edge(
         &self,
@@ -332,7 +283,7 @@ impl EdgeTableCore {
         }
 
         self.properties
-            .get(prop_offset)
+            .get(prop_offset, None)
             .map(|props| {
                 props
                     .into_iter()
@@ -422,13 +373,15 @@ impl EdgeTableCore {
         }
 
         let prop_offset = if !converted_values.is_empty() {
-            self.properties.insert(&converted_values)?
+            self.properties.insert(&converted_values, ts)?
         } else {
             0
         };
 
         if self.has_edge(src, dst, rank, ts) {
-            self.properties.delete(prop_offset);
+            if prop_offset > 0 {
+                self.properties.delete(prop_offset);
+            }
             return Err(StorageError::edge_already_exists(format!(
                 "{} -> {}@{}",
                 src, dst, rank
@@ -443,7 +396,9 @@ impl EdgeTableCore {
             .out_csr
             .insert_edge(src, dst_key, edge_id, prop_offset, ts)
         {
-            self.properties.delete(prop_offset);
+            if prop_offset > 0 {
+                self.properties.delete(prop_offset);
+            }
             return Err(StorageError::edge_already_exists(format!(
                 "{} -> {}@{}",
                 src, dst, rank
@@ -455,7 +410,9 @@ impl EdgeTableCore {
             .insert_edge(dst, src_key, edge_id, prop_offset, ts)
         {
             self.out_csr.delete_edge(src, edge_id, ts);
-            self.properties.delete(prop_offset);
+            if prop_offset > 0 {
+                self.properties.delete(prop_offset);
+            }
             return Err(StorageError::edge_already_exists(format!(
                 "{} -> {}@{}",
                 dst, src, rank
@@ -583,8 +540,8 @@ impl EdgeTableCore {
                 // Try fast path first, fall back to regular get if not fixed-size
                 let properties = self
                     .properties
-                    .get_fast(nbr.prop_offset)
-                    .or_else(|| self.properties.get(nbr.prop_offset))
+                    .get_fast(nbr.prop_offset, None)
+                    .or_else(|| self.properties.get(nbr.prop_offset, None))
                     .map(|props| {
                         props
                             .into_iter()
@@ -622,8 +579,8 @@ impl EdgeTableCore {
                 // Try fast path first, fall back to regular get if not fixed-size
                 let properties = self
                     .properties
-                    .get_fast(nbr.prop_offset)
-                    .or_else(|| self.properties.get(nbr.prop_offset))
+                    .get_fast(nbr.prop_offset, None)
+                    .or_else(|| self.properties.get(nbr.prop_offset, None))
                     .map(|props| {
                         props
                             .into_iter()
@@ -846,7 +803,7 @@ impl EdgeTableCore {
         if let Some(nbr) = self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
         {
             self.properties
-                .set_property(nbr.prop_offset, prop_name, Some(value.clone()))?;
+                .set_property(nbr.prop_offset, prop_name, Some(value.clone()), ts)?;
             return Ok(true);
         }
 
@@ -869,11 +826,7 @@ impl EdgeTableCore {
             dst_key,
             params.ts,
         ) {
-            self.properties.set_property_by_id(
-                nbr.prop_offset,
-                PropertyId(params.prop_id),
-                Some(params.value.clone()),
-            )?;
+            self.properties.set_property_by_id(nbr.prop_offset, PropertyId(params.prop_id), Some(params.value.clone()), params.ts)?;
 
             let src_key = Self::edge_endpoint_key(params.src, params.rank);
             if let Some(ie_nbr) = self.merged_get_edge(
@@ -934,107 +887,6 @@ impl EdgeTableCore {
 
     pub fn iter(&self, ts: Timestamp) -> EdgeTableScanIterator<'_> {
         EdgeTableScanIterator::new(self, ts)
-    }
-
-    pub fn maybe_compact_for_flush(&mut self, ts: Timestamp, threshold: f32) {
-        const RESERVE_RATIO: f32 = 0.25;
-        if self.out_csr.fragmentation_ratio() > threshold {
-            self.out_csr.compact_with_ts(ts, RESERVE_RATIO);
-        }
-        if self.in_csr.fragmentation_ratio() > threshold {
-            self.in_csr.compact_with_ts(ts, RESERVE_RATIO);
-        }
-    }
-
-    pub fn compact_csr_only(&mut self, ts: Timestamp, reserve_ratio: f32) -> usize {
-        self.out_csr.compact_with_ts(ts, reserve_ratio)
-            + self.in_csr.compact_with_ts(ts, reserve_ratio)
-    }
-
-    pub fn deletion_stats(&self) -> DeletionStats {
-        let mut stats = DeletionStats::default();
-
-        let mut total_edge_count = 0u64;
-        let mut total_deleted_count = 0u64;
-
-        for segment in self.out_segments.iter().chain(self.in_segments.iter()) {
-            let edge_count = segment.csr.edge_count();
-            total_edge_count += edge_count;
-
-            match segment.deletion_info {
-                DeletionInfo::NoDeletes => {}
-                DeletionInfo::HasDeletes { min_ts, max_ts, deleted_count } => {
-                    total_deleted_count += deleted_count as u64;
-                    stats.segments_with_deletions += 1;
-
-                    if (deleted_count as u64) == edge_count {
-                        stats.completely_deleted_segments += 1;
-                    }
-
-                    if let Some(ref mut oldest) = stats.oldest_deletion_ts {
-                        *oldest = (*oldest).min(min_ts);
-                    } else {
-                        stats.oldest_deletion_ts = Some(min_ts);
-                    }
-
-                    if let Some(ref mut newest) = stats.newest_deletion_ts {
-                        *newest = (*newest).max(max_ts);
-                    } else {
-                        stats.newest_deletion_ts = Some(max_ts);
-                    }
-                }
-            }
-        }
-
-        stats.total_frozen_edges = total_edge_count;
-        stats.total_deleted_edges = total_deleted_count;
-
-        stats
-    }
-
-    pub fn segments_total_bytes(&self) -> usize {
-        self.out_segments.iter().map(|s| s.estimated_bytes()).sum::<usize>()
-            + self.in_segments.iter().map(|s| s.estimated_bytes()).sum::<usize>()
-    }
-
-    pub fn compact_properties(&mut self, ts: Timestamp) {
-        let mut valid_offsets = std::collections::HashSet::new();
-
-        for (_, nbr) in self.out_csr.iter(ts) {
-            if nbr.prop_offset > 0 {
-                valid_offsets.insert(nbr.prop_offset);
-            }
-        }
-
-        for segment in &self.out_segments {
-            for (_, nbr) in segment.csr.iter() {
-                if nbr.timestamp <= ts
-                    && !self.mvcc.is_tombstoned(nbr.edge_id, ts)
-                    && nbr.prop_offset > 0
-                {
-                    valid_offsets.insert(nbr.prop_offset);
-                }
-            }
-        }
-
-        for (_, nbr) in self.in_csr.iter(ts) {
-            if nbr.prop_offset > 0 {
-                valid_offsets.insert(nbr.prop_offset);
-            }
-        }
-
-        for segment in &self.in_segments {
-            for (_, nbr) in segment.csr.iter() {
-                if nbr.timestamp <= ts
-                    && !self.mvcc.is_tombstoned(nbr.edge_id, ts)
-                    && nbr.prop_offset > 0
-                {
-                    valid_offsets.insert(nbr.prop_offset);
-                }
-            }
-        }
-
-        self.properties.compact(&valid_offsets);
     }
 
     pub fn memory_size(&self) -> usize {
@@ -1204,181 +1056,8 @@ impl<'a> Iterator for EdgeTableScanIterator<'a> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::storage::schema::ChangeDetails;
-    use crate::storage::types::StoragePropertyDef;
-
-    #[test]
-    fn test_version_history_add_property() -> StorageResult<()> {
-        let schema = EdgeSchema {
-            label_id: 1,
-            label_name: "Likes".to_string(),
-            src_label: 1,
-            dst_label: 1,
-            properties: vec![],
-            oe_strategy: EdgeStrategy::Multiple,
-            ie_strategy: EdgeStrategy::Multiple,
-            schema_version: 1,
-        };
-        let mut table = EdgeTableCore::with_config(schema, Default::default())?;
-
-        let initial_version = table.schema.schema_version;
-        assert_eq!(initial_version, 1);
-
-        // Add a property
-        table.add_property(
-            "weight".to_string(),
-            DataType::Float,
-            true,
-        )?;
-
-        // Version should increment
-        assert_eq!(table.schema.schema_version, 2);
-
-        // Check version history was updated
-        let history = table.version_history.lock().unwrap();
-        let changes = history.change_log.get_version_changes(2);
-        assert!(changes.is_some(), "Should have changes for version 2");
-
-        let changes = changes.unwrap();
-        assert_eq!(changes.len(), 1, "Should have exactly one change");
-
-        let change = &changes[0];
-        match &change.details {
-            ChangeDetails::PropertyAdded { name, data_type, nullable, .. } => {
-                assert_eq!(name, "weight");
-                assert_eq!(*data_type, DataType::Float);
-                assert_eq!(*nullable, true);
-            }
-            _ => panic!("Expected PropertyAdded change"),
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_version_history_remove_property() -> StorageResult<()> {
-        let schema = EdgeSchema {
-            label_id: 1,
-            label_name: "Likes".to_string(),
-            src_label: 1,
-            dst_label: 1,
-            properties: vec![StoragePropertyDef::new("weight".to_string(), DataType::Float)],
-            oe_strategy: EdgeStrategy::Multiple,
-            ie_strategy: EdgeStrategy::Multiple,
-            schema_version: 1,
-        };
-        let mut table = EdgeTableCore::with_config(schema, Default::default())?;
-
-        // Remove the property
-        table.remove_property("weight")?;
-
-        // Version should increment to 2
-        assert_eq!(table.schema.schema_version, 2);
-
-        // Check version history was updated
-        let history = table.version_history.lock().unwrap();
-        let changes = history.change_log.get_version_changes(2);
-        assert!(changes.is_some(), "Should have changes for version 2");
-
-        let changes = changes.unwrap();
-        assert_eq!(changes.len(), 1, "Should have exactly one change");
-
-        let change = &changes[0];
-        match &change.details {
-            ChangeDetails::PropertyRemoved { name, .. } => {
-                assert_eq!(name, "weight");
-            }
-            _ => panic!("Expected PropertyRemoved change"),
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_version_history_rename_property() -> StorageResult<()> {
-        let schema = EdgeSchema {
-            label_id: 1,
-            label_name: "Follows".to_string(),
-            src_label: 1,
-            dst_label: 1,
-            properties: vec![StoragePropertyDef::new("weight".to_string(), DataType::Float)],
-            oe_strategy: EdgeStrategy::Multiple,
-            ie_strategy: EdgeStrategy::Multiple,
-            schema_version: 1,
-        };
-        let mut table = EdgeTableCore::with_config(schema, Default::default())?;
-
-        // Rename the property
-        table.rename_property("weight", "strength")?;
-
-        // Version should increment to 2
-        assert_eq!(table.schema.schema_version, 2);
-
-        // Check version history was updated
-        let history = table.version_history.lock().unwrap();
-        let changes = history.change_log.get_version_changes(2);
-        assert!(changes.is_some(), "Should have changes for version 2");
-
-        let changes = changes.unwrap();
-        assert_eq!(changes.len(), 1, "Should have exactly one change");
-
-        let change = &changes[0];
-        match &change.details {
-            ChangeDetails::PropertyRenamed { old_name, new_name } => {
-                assert_eq!(old_name, "weight");
-                assert_eq!(new_name, "strength");
-            }
-            _ => panic!("Expected PropertyRenamed change"),
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_version_history_multiple_changes() -> StorageResult<()> {
-        let schema = EdgeSchema {
-            label_id: 1,
-            label_name: "Interacts".to_string(),
-            src_label: 1,
-            dst_label: 1,
-            properties: vec![],
-            oe_strategy: EdgeStrategy::Multiple,
-            ie_strategy: EdgeStrategy::Multiple,
-            schema_version: 1,
-        };
-        let mut table = EdgeTableCore::with_config(schema, Default::default())?;
-
-        // Make several changes
-        table.add_property(
-            "strength".to_string(),
-            DataType::Float,
-            true,
-        )?;
-        assert_eq!(table.schema.schema_version, 2);
-
-        table.add_property(
-            "frequency".to_string(),
-            DataType::Int,
-            false,
-        )?;
-        assert_eq!(table.schema.schema_version, 3);
-
-        table.rename_property("strength", "intensity")?;
-        assert_eq!(table.schema.schema_version, 4);
-
-        // Check history
-        let history = table.version_history.lock().unwrap();
-
-        // Should have changes at versions 2, 3, and 4
-        assert!(history.change_log.get_version_changes(2).is_some());
-        assert!(history.change_log.get_version_changes(3).is_some());
-        assert!(history.change_log.get_version_changes(4).is_some());
-
-        Ok(())
-    }
-}
+#[path = "core_tests.rs"]
+mod tests;
 
 
 

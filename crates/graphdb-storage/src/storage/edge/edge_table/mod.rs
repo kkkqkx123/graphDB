@@ -2,6 +2,8 @@
 //!
 //! Organization:
 //! - `core`: Core operations (CRUD, properties, queries)
+//! - `compaction`: Compaction and deletion handling (CSR compaction, property cleanup)
+//! - `freeze`: CSR freezing operations (delta to segment conversion)
 //! - `segment`: Segment management (CsrSegment, versioning, deletion tracking)
 //! - `merge`: Merge strategies (LSM, adaptive, in-place, aggressive)
 //! - `mvcc`: MVCC and snapshot management
@@ -10,6 +12,8 @@
 //! - `stats`: Statistics structures (metrics, observability)
 
 pub mod core;
+pub mod compaction;
+pub mod freeze;
 pub mod segment;
 pub mod merge;
 pub mod mvcc;
@@ -19,7 +23,7 @@ pub mod stats;
 
 // Re-export public types for backward compatibility
 pub use core::{
-    EdgeTableCore as EdgeTable, EdgeTableConfig, EdgeTableScanIterator,
+    EdgeTableCore as EdgeTable, EdgeTableCore, EdgeTableConfig, EdgeTableScanIterator,
     UpdateEdgePropertyByOffsetParams,
 };
 pub use segment::{CsrSegment, DeletionInfo, SegmentVersion, SEPARATE_EDGE_ID_STORAGE_THRESHOLD};
@@ -39,47 +43,6 @@ use std::sync::Arc;
 use crate::storage::persistence::write_header_to;
 
 impl EdgeTable {
-    /// Freeze CSR only (convert mutable delta to immutable segment).
-    ///
-    /// Converts visible edges (ts <= query_ts) to immutable CSR and records
-    /// timestamp ranges for time-travel queries and MVCC support.
-    /// Clears mutable delta after freezing.
-    /// Does NOT perform physical compaction.
-    pub fn freeze_csr_only(&mut self, ts: Timestamp) -> usize {
-        let out_result = Self::freeze_delta(
-            &mut self.out_csr,
-            &mut self.out_segments,
-            ts,
-            &self.mvcc.pending_segment_deletions,
-            &self.mvcc.segment_tombstones,
-        );
-        let in_result = Self::freeze_delta(
-            &mut self.in_csr,
-            &mut self.in_segments,
-            ts,
-            &self.mvcc.pending_segment_deletions,
-            &self.mvcc.segment_tombstones,
-        );
-
-        self.mvcc.segment_tombstones.extend(self.mvcc.pending_segment_deletions.drain());
-
-        // Rebuild indices after segments are modified
-        self.rebuild_segment_indices();
-
-        let total_frozen = out_result.frozen_count + in_result.frozen_count;
-
-        if self.out_segments.len() >= self.config.max_segments_per_direction {
-            let _ = merge::merge_aggressive(&mut self.out_segments, 8 * 1024 * 1024);
-            self.rebuild_segment_indices();
-        }
-        if self.in_segments.len() >= self.config.max_segments_per_direction {
-            let _ = merge::merge_aggressive(&mut self.in_segments, 8 * 1024 * 1024);
-            self.rebuild_segment_indices();
-        }
-
-        total_frozen
-    }
-
     /// Compact and freeze in sequence with adaptive configuration.
     pub fn compact_and_freeze_with_config(&mut self, ts: Timestamp, config: &CompactConfig) -> usize {
         let edge_count = self.edge_count() as usize;
@@ -280,101 +243,6 @@ impl EdgeTable {
         Ok(Csr::from_nbr_entries(&edges, vertex_capacity))
     }
 
-    /// Freeze delta CSR to immutable segment
-    fn freeze_delta(
-        delta: &mut CsrVariant,
-        segments: &mut Vec<CsrSegment>,
-        ts: Timestamp,
-        pending_deletions: &std::collections::HashMap<EdgeId, Timestamp>,
-        segment_tombstones: &std::collections::HashMap<EdgeId, Timestamp>,
-    ) -> merge::FreezeDeltaResult {
-        let entries: Vec<_> = delta
-            .iter(ts)
-            .map(|(src, nbr)| {
-                let src_u32 = src.as_int64().unwrap_or(0) as u32;
-                (src_u32, nbr)
-            })
-            .collect();
-
-        if entries.is_empty() {
-            delta.clear();
-            return merge::FreezeDeltaResult {
-                frozen_count: 0,
-                edge_ids: Vec::new(),
-                csr_position_to_edge_ids_index: Vec::new(),
-            };
-        }
-
-        let max_vid = entries
-            .iter()
-            .map(|(src, nbr)| {
-                let nbr_id = nbr.neighbor.as_int64().unwrap_or(0) as usize;
-                std::cmp::max(*src as usize, nbr_id)
-            })
-            .max()
-            .unwrap_or(0);
-        let vertex_capacity = delta.vertex_capacity();
-        assert!(
-            max_vid < vertex_capacity,
-            "Vertex ID {} exceeds capacity {}",
-            max_vid,
-            vertex_capacity
-        );
-
-        let create_ts_min = entries
-            .iter()
-            .map(|(_, nbr)| nbr.create_ts)
-            .min()
-            .unwrap_or(0);
-        let create_ts_max = entries
-            .iter()
-            .map(|(_, nbr)| nbr.create_ts)
-            .max()
-            .unwrap_or(0);
-
-        let mut deleted_count = 0u32;
-        let (delete_ts_min, delete_ts_max) = entries
-            .iter()
-            .filter_map(|(_, nbr)| {
-                if let Some(&ts) = pending_deletions.get(&nbr.edge_id) {
-                    deleted_count += 1;
-                    return Some(ts);
-                }
-                if let Some(&ts) = segment_tombstones.get(&nbr.edge_id) {
-                    deleted_count += 1;
-                    return Some(ts);
-                }
-                None
-            })
-            .fold((u32::MAX, 0), |(min, max), ts| {
-                (std::cmp::min(min, ts), std::cmp::max(max, ts))
-            });
-
-        let csr = Csr::from_nbr_entries(&entries, vertex_capacity);
-        let frozen = entries.len();
-
-        let deletion_info = DeletionInfo::with_count(delete_ts_min, delete_ts_max, deleted_count);
-        let mut segment = CsrSegment::new(
-            csr,
-            create_ts_min,
-            create_ts_max,
-            deletion_info,
-        );
-
-        if frozen >= SEPARATE_EDGE_ID_STORAGE_THRESHOLD {
-            segment.edge_ids = Some(entries.iter().map(|(_, nbr)| nbr.edge_id).collect());
-        }
-
-        segments.push(segment);
-        delta.clear();
-
-        merge::FreezeDeltaResult {
-            frozen_count: frozen,
-            edge_ids: Vec::new(),
-            csr_position_to_edge_ids_index: Vec::new(),
-        }
-    }
-
     /// Get current merge statistics
     pub fn merge_stats(&self) -> MergeStats {
         MergeStats {
@@ -439,6 +307,78 @@ impl EdgeTable {
                 segments_before,
                 segments_after,
                 edges_merged: total_edges,
+                duration_ms,
+            },
+            segments_reduced: segments_before.saturating_sub(segments_after),
+        }
+    }
+
+    /// Merge segments with physical deletion of tombstoned edges.
+    ///
+    /// Combines segment reorganization with physical deletion of edges that have been
+    /// deleted before min_active_snapshot_ts. This ensures:
+    /// 1. Segments are reorganized for better locality
+    /// 2. Edges deleted before the minimum active snapshot are physically removed
+    /// 3. MVCC visibility is maintained for all active snapshots
+    ///
+    /// # Parameters
+    ///
+    /// - `time_threshold`: Merge segments if time gap <= this value
+    /// - `size_threshold_bytes`: Merge segments if combined size <= this value
+    /// - `min_active_snapshot_ts`: Edges deleted before this timestamp can be physically removed
+    ///
+    /// # Returns
+    ///
+    /// MergeMetricsResult containing segment counts before/after and reduction count.
+    pub fn merge_segments_with_config_and_deletion_filter(
+        &mut self,
+        time_threshold: Timestamp,
+        size_threshold_bytes: usize,
+        min_active_snapshot_ts: Option<Timestamp>,
+    ) -> MergeMetricsResult {
+        let start = Instant::now();
+        let segments_before = self.out_segments.len() + self.in_segments.len();
+
+        if let Some(_min_ts) = min_active_snapshot_ts {
+            // Merge out segments with deletion filter
+            if self.out_segments.len() > 1 {
+                let out_indices: Vec<usize> = (0..self.out_segments.len()).collect();
+                merge::merge_selected_segments_with_deletion_filter(
+                    &mut self.out_segments,
+                    out_indices,
+                    u32::MAX,  // Use max timestamp to include all edges in CSR iteration
+                    min_active_snapshot_ts,
+                );
+            }
+
+            // Merge in segments with deletion filter
+            if self.in_segments.len() > 1 {
+                let in_indices: Vec<usize> = (0..self.in_segments.len()).collect();
+                merge::merge_selected_segments_with_deletion_filter(
+                    &mut self.in_segments,
+                    in_indices,
+                    u32::MAX,
+                    min_active_snapshot_ts,
+                );
+            }
+        } else {
+            // If no min_active_snapshot_ts, fall back to standard merge
+            let _ = merge::merge_in_place(&mut self.out_segments, time_threshold, size_threshold_bytes);
+            let _ = merge::merge_in_place(&mut self.in_segments, time_threshold, size_threshold_bytes);
+        }
+
+        let segments_after = self.out_segments.len() + self.in_segments.len();
+        let duration_ms = start.elapsed().as_millis() as u64;
+
+        if segments_before != segments_after {
+            self.rebuild_segment_indices();
+        }
+
+        MergeMetricsResult {
+            metrics: MergeMetrics {
+                segments_before,
+                segments_after,
+                edges_merged: 0,  // Complex to compute from merged results
                 duration_ms,
             },
             segments_reduced: segments_before.saturating_sub(segments_after),
