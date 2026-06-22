@@ -136,7 +136,14 @@ impl<'a, T: CompactTarget + ?Sized> CompactTransaction<'a, T> {
 
         self.version_manager
             .release_update_timestamp(self.timestamp);
-        self.version_manager.clear();
+
+        // Don't call clear() - it breaks subsequent save_to_disk operations by
+        // making all data invisible (read_ts becomes 0). The version manager's state
+        // is left as-is to preserve data visibility for operations that follow
+        // the compact transaction (like save_to_disk and create_checkpoint).
+        // When the storage is reopened, bootstrap_from_disk will properly
+        // initialize the version manager from the checkpoint information.
+
         self.timestamp = RELEASED_TIMESTAMP;
 
         Ok(())

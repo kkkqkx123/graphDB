@@ -482,3 +482,76 @@ fn test_mutable_csr_memory_size() {
         "Mutable CSR size should decrease after freeze"
     );
 }
+
+#[test]
+fn test_add_property_increments_version() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let v1 = table.schema().schema_version;
+    assert_eq!(v1, 1, "Initial version should be 1");
+
+    table.add_property("strength".to_string(), DataType::Double, false)
+        .expect("add_property should succeed");
+
+    let v2 = table.schema().schema_version;
+    assert_eq!(v2, 2, "Version should increment after add_property");
+}
+
+#[test]
+fn test_remove_property_increments_version() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let v1 = table.schema().schema_version;
+
+    table.remove_property("weight")
+        .expect("remove_property should succeed");
+
+    let v2 = table.schema().schema_version;
+    assert_eq!(v2, v1 + 1, "Version should increment after remove_property");
+}
+
+#[test]
+fn test_rename_property_increments_version() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    let v1 = table.schema().schema_version;
+
+    table.rename_property("weight", "edge_weight")
+        .expect("rename_property should succeed");
+
+    let v2 = table.schema().schema_version;
+    assert_eq!(v2, v1 + 1, "Version should increment after rename_property");
+}
+
+#[test]
+fn test_sequential_property_modifications() {
+    let schema = create_test_schema();
+    let mut table = EdgeTable::new(schema).unwrap();
+
+    // Initial version should be 1
+    assert_eq!(table.schema().schema_version, 1);
+
+    // Add first property
+    table.add_property("strength".to_string(), DataType::Double, false)
+        .expect("add_property 1 should succeed");
+    assert_eq!(table.schema().schema_version, 2);
+
+    // Add second property
+    table.add_property("reliability".to_string(), DataType::Double, false)
+        .expect("add_property 2 should succeed");
+    assert_eq!(table.schema().schema_version, 3);
+
+    // Rename property
+    table.rename_property("weight", "edge_weight")
+        .expect("rename_property should succeed");
+    assert_eq!(table.schema().schema_version, 4);
+
+    // Remove property
+    table.remove_property("reliability")
+        .expect("remove_property should succeed");
+    assert_eq!(table.schema().schema_version, 5);
+}
+

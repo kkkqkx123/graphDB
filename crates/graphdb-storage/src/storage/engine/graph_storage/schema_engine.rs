@@ -59,7 +59,8 @@ pub fn create_vertex_type(
 
 pub fn create_vertex_type_with_id(
     ctx: &GraphStorageContext,
-    name: &str,
+    storage_name: &str,
+    user_name: &str,
     label_id: LabelId,
     properties: Vec<StoragePropertyDef>,
     primary_key: &str,
@@ -69,8 +70,8 @@ pub fn create_vertex_type_with_id(
     }
 
     let mut vertex_label_names = ctx.data_store().vertex_label_names().write();
-    if vertex_label_names.contains_key(name) {
-        return Err(StorageError::label_already_exists(name.to_string()));
+    if vertex_label_names.contains_key(storage_name) {
+        return Err(StorageError::label_already_exists(storage_name.to_string()));
     }
 
     if ctx
@@ -97,7 +98,7 @@ pub fn create_vertex_type_with_id(
 
     let schema = VertexSchema {
         label_id,
-        label_name: name.to_string(),
+        label_name: user_name.to_string(),
         properties,
         primary_key_index,
         schema_version: 1,
@@ -108,12 +109,12 @@ pub fn create_vertex_type_with_id(
         .validate_on_creation()
         .map_err(|e| StorageError::invalid_operation(e))?;
 
-    let table = VertexTable::new(label_id, name.to_string(), schema);
+    let table = VertexTable::new(label_id, user_name.to_string(), schema);
     ctx.data_store()
         .vertex_tables()
         .write()
         .insert(label_id, table);
-    vertex_label_names.insert(name.to_string(), label_id);
+    vertex_label_names.insert(storage_name.to_string(), label_id);
 
     Ok(label_id)
 }
@@ -243,7 +244,7 @@ pub fn create_edge_type_with_id(
 
     let schema = EdgeSchema {
         label_id,
-        label_name: params.name.to_string(),
+        label_name: params.user_name.to_string(),
         src_label: params.src_label,
         dst_label: params.dst_label,
         properties: params.properties,
@@ -699,7 +700,7 @@ mod tests {
     fn test_create_vertex_type_with_id() {
         let ctx = GraphStorageContext::new();
         let label_id = ctx
-            .create_vertex_type_with_id("Person", 42, name_prop(), "name")
+            .create_vertex_type_with_id("space_1:tag:Person", "Person", 42, name_prop(), "name")
             .expect("create_vertex_type_with_id should succeed");
         assert_eq!(label_id, 42);
     }

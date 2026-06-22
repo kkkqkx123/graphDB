@@ -17,9 +17,11 @@
 
 use std::path::Path;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use super::super::{ColumnStore, IdIndexer, IdKey, LabelId, Timestamp, VertexId, VertexRecord, VertexSchema, VertexTimestamp};
 use crate::core::{StorageError, StorageResult, Value};
+use crate::storage::schema::{LabelVersionHistory, SchemaObjectType};
 
 #[derive(Debug, Clone)]
 pub struct VertexTableConfig {
@@ -47,6 +49,8 @@ pub struct VertexTable {
     /// Cache for property name → index mapping to avoid O(n) schema lookups.
     /// Invalidated whenever schema changes.
     pub(super) property_index_cache: HashMap<String, usize>,
+    /// Version history tracking for schema changes
+    pub(super) version_history: Arc<Mutex<LabelVersionHistory>>,
 }
 
 impl VertexTable {
@@ -71,6 +75,10 @@ impl VertexTable {
             property_index_cache.insert(prop.name.clone(), idx);
         }
 
+        let version_history = Arc::new(Mutex::new(
+            LabelVersionHistory::new(label, label_name.clone(), SchemaObjectType::Vertex)
+        ));
+
         Self {
             label,
             label_name,
@@ -81,6 +89,7 @@ impl VertexTable {
             is_open: true,
             deferred_encodings: std::collections::HashMap::new(),
             property_index_cache,
+            version_history,
         }
     }
 
@@ -819,4 +828,167 @@ mod tests {
         assert!(table.get_internal_id("v2", 200).is_some());
         assert!(table.get_internal_id("v1", 200).is_none());
     }
+
+    #[test]
+    fn test_add_property_increments_version() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        let v1 = table.schema().schema_version;
+        assert_eq!(v1, 1, "Initial version should be 1");
+
+        table.add_property(StoragePropertyDef::new("email".to_string(), DataType::String))
+            .expect("add_property should succeed");
+
+        let v2 = table.schema().schema_version;
+        assert_eq!(v2, 2, "Version should increment after add_property");
+    }
+
+    #[test]
+    fn test_remove_property_increments_version() {
+        let mut schema = create_test_schema();
+        // Add a removable property
+        schema.properties.push(StoragePropertyDef::new("email".to_string(), DataType::String));
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        let v1 = table.schema().schema_version;
+
+        table.remove_property("email")
+            .expect("remove_property should succeed");
+
+        let v2 = table.schema().schema_version;
+        assert_eq!(v2, v1 + 1, "Version should increment after remove_property");
+    }
+
+    #[test]
+    fn test_rename_property_increments_version() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        let v1 = table.schema().schema_version;
+
+        table.rename_property("name", "full_name")
+            .expect("rename_property should succeed");
+
+        let v2 = table.schema().schema_version;
+        assert_eq!(v2, v1 + 1, "Version should increment after rename_property");
+    }
+
+    #[test]
+    fn test_sequential_property_modifications() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        // Initial version should be 1
+        assert_eq!(table.schema().schema_version, 1);
+
+        // Add first property
+        table.add_property(StoragePropertyDef::new("email".to_string(), DataType::String))
+            .expect("add_property 1 should succeed");
+        assert_eq!(table.schema().schema_version, 2);
+
+        // Add second property
+        table.add_property(StoragePropertyDef::new("phone".to_string(), DataType::String))
+            .expect("add_property 2 should succeed");
+        assert_eq!(table.schema().schema_version, 3);
+
+        // Rename property
+        table.rename_property("email", "email_address")
+            .expect("rename_property should succeed");
+        assert_eq!(table.schema().schema_version, 4);
+
+        // Remove property
+        table.remove_property("phone")
+            .expect("remove_property should succeed");
+        assert_eq!(table.schema().schema_version, 5);
+    }
+
+    #[test]
+    fn test_version_history_add_property() {
+        use crate::storage::schema::ChangeDetails;
+
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(1, "User".to_string(), schema);
+
+        // Add a property
+        table.add_property(StoragePropertyDef::new("email".to_string(), DataType::String))
+            .expect("add_property should succeed");
+
+        // Check version history was updated
+        let history = table.version_history.lock().unwrap();
+        let changes = history.change_log.get_version_changes(2);
+        assert!(changes.is_some(), "Should have changes for version 2");
+
+        let changes = changes.unwrap();
+        assert_eq!(changes.len(), 1, "Should have exactly one change");
+
+        let change = &changes[0];
+        match &change.details {
+            ChangeDetails::PropertyAdded { name, .. } => {
+                assert_eq!(name, "email");
+            }
+            _ => panic!("Expected PropertyAdded change"),
+        }
+    }
+
+    #[test]
+    fn test_version_history_remove_property() {
+        use crate::storage::schema::ChangeDetails;
+
+        let mut schema = create_test_schema();
+        schema.properties.push(StoragePropertyDef::new("email".to_string(), DataType::String));
+
+        let mut table = VertexTable::new(1, "User".to_string(), schema);
+
+        // Remove a property
+        table.remove_property("email")
+            .expect("remove_property should succeed");
+
+        // Check version history was updated
+        let history = table.version_history.lock().unwrap();
+        let changes = history.change_log.get_version_changes(2);
+        assert!(changes.is_some(), "Should have changes for version 2");
+
+        let changes = changes.unwrap();
+        assert_eq!(changes.len(), 1, "Should have exactly one change");
+
+        let change = &changes[0];
+        match &change.details {
+            ChangeDetails::PropertyRemoved { name, .. } => {
+                assert_eq!(name, "email");
+            }
+            _ => panic!("Expected PropertyRemoved change"),
+        }
+    }
+
+    #[test]
+    fn test_version_history_rename_property() {
+        use crate::storage::schema::ChangeDetails;
+
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(1, "User".to_string(), schema);
+
+        // Rename a property
+        table.rename_property("name", "full_name")
+            .expect("rename_property should succeed");
+
+        // Check version history was updated
+        let history = table.version_history.lock().unwrap();
+        let changes = history.change_log.get_version_changes(2);
+        assert!(changes.is_some(), "Should have changes for version 2");
+
+        let changes = changes.unwrap();
+        assert_eq!(changes.len(), 1, "Should have exactly one change");
+
+        let change = &changes[0];
+        match &change.details {
+            ChangeDetails::PropertyRenamed { old_name, new_name } => {
+                assert_eq!(old_name, "name");
+                assert_eq!(new_name, "full_name");
+            }
+            _ => panic!("Expected PropertyRenamed change"),
+        }
+    }
 }
+
+

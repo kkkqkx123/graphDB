@@ -119,6 +119,25 @@ impl VertexTimestamp {
         self.end_ts.truncate(write_idx);
     }
 
+    /// Compact and return the ID remapping (old_id -> new_id)
+    pub fn compact_with_mapping(&mut self) -> std::collections::HashMap<u32, u32> {
+        let mut mapping = std::collections::HashMap::new();
+        let mut write_idx = 0;
+        for read_idx in 0..self.start_ts.len() {
+            if self.end_ts[read_idx] == MAX_TIMESTAMP {
+                if write_idx != read_idx {
+                    self.start_ts[write_idx] = self.start_ts[read_idx];
+                    self.end_ts[write_idx] = self.end_ts[read_idx];
+                }
+                mapping.insert(read_idx as u32, write_idx as u32);
+                write_idx += 1;
+            }
+        }
+        self.start_ts.truncate(write_idx);
+        self.end_ts.truncate(write_idx);
+        mapping
+    }
+
     pub fn dump(&self) -> Vec<Timestamp> {
         let mut result = Vec::with_capacity(self.start_ts.len() * 2);
         for i in 0..self.start_ts.len() {

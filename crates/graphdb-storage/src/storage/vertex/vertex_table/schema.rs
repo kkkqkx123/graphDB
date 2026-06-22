@@ -5,6 +5,7 @@
 
 use crate::core::StorageResult;
 use crate::storage::types::StoragePropertyDef;
+use crate::storage::schema::{ChangeDetails, SchemaChange, SchemaObjectType};
 
 use super::core::VertexTable;
 
@@ -27,10 +28,25 @@ impl VertexTable {
 
         // Update cache with new property
         let idx = self.schema.properties.len() - 1;
-        self.property_index_cache.insert(prop.name, idx);
+        self.property_index_cache.insert(prop.name.clone(), idx);
 
         // Increment schema version on modification
         self.schema.increment_version();
+
+        // Record schema change
+        let change = SchemaChange::new(
+            self.schema.schema_version,
+            SchemaObjectType::Vertex,
+            self.label,
+            self.label_name.clone(),
+            ChangeDetails::PropertyAdded {
+                name: prop.name.clone(),
+                data_type: prop.data_type.clone(),
+                nullable: prop.nullable,
+                default_value: prop.default_value.clone(),
+            },
+        );
+        self.version_history.lock().unwrap().add_change(change);
 
         Ok(())
     }
@@ -54,6 +70,9 @@ impl VertexTable {
             ));
         }
 
+        // Get property details before removal for change recording
+        let removed_prop = self.schema.properties[index].clone();
+
         // Remove from columns first (potentially failing operation)
         self.columns.remove_column(prop_name)?;
 
@@ -73,6 +92,19 @@ impl VertexTable {
 
         // Increment schema version on modification
         self.schema.increment_version();
+
+        // Record schema change
+        let change = SchemaChange::new(
+            self.schema.schema_version,
+            SchemaObjectType::Vertex,
+            self.label,
+            self.label_name.clone(),
+            ChangeDetails::PropertyRemoved {
+                name: removed_prop.name,
+                data_type: removed_prop.data_type,
+            },
+        );
+        self.version_history.lock().unwrap().add_change(change);
 
         Ok(())
     }
@@ -111,6 +143,19 @@ impl VertexTable {
 
         // Increment schema version on modification
         self.schema.increment_version();
+
+        // Record schema change
+        let change = SchemaChange::new(
+            self.schema.schema_version,
+            SchemaObjectType::Vertex,
+            self.label,
+            self.label_name.clone(),
+            ChangeDetails::PropertyRenamed {
+                old_name: old_name.to_string(),
+                new_name: new_name.to_string(),
+            },
+        );
+        self.version_history.lock().unwrap().add_change(change);
 
         Ok(())
     }

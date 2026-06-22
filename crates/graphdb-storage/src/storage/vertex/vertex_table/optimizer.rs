@@ -16,17 +16,46 @@ impl VertexTable {
     pub fn compact(&mut self) {
         let id_mapping = self.id_indexer.compact().unwrap_or_default();
         if id_mapping.is_empty() {
-            let old_count = self.timestamps.size();
-            self.timestamps.compact();
-            let new_count = self.timestamps.size();
-            if new_count < old_count && new_count < self.columns.row_count() {
-                self.columns.resize(new_count);
+            // id_indexer has no remapping (concurrent version returns empty)
+            // So we need to compute the remapping from timestamps.compact_with_mapping()
+            let ts_mapping = self.timestamps.compact_with_mapping();
+            if !ts_mapping.is_empty() {
+                // Timestamps were remapped, but id_indexer wasn't aware of it.
+                // We need to update id_indexer to reflect this change.
+                self.remap_id_indexer(&ts_mapping);
+            } else {
+                // No remapping happened in timestamps
+                let old_count = self.id_indexer.len();
+                self.columns.resize(old_count);
+                let _ = self.apply_deferred_encodings();
             }
-            let _ = self.apply_deferred_encodings();
             return;
         }
         self.remap_columns(&id_mapping);
         self.remap_timestamps(&id_mapping);
+        let _ = self.apply_deferred_encodings();
+    }
+
+    fn remap_id_indexer(&mut self, ts_mapping: &std::collections::HashMap<u32, u32>) {
+        // Update id_indexer to reflect the ID remapping caused by timestamps.compact()
+        // This is critical for maintaining consistency between id_indexer and timestamps/columns
+        let mut updated_entries = Vec::new();
+
+        for (old_id, new_id) in ts_mapping {
+            if let Some(key) = self.id_indexer.get_key(*old_id) {
+                updated_entries.push((key, *new_id));
+            }
+        }
+
+        // Clear and rebuild id_indexer with correct mappings
+        self.id_indexer.clear();
+        for (key, new_id) in updated_entries {
+            self.id_indexer.set_at(new_id, key);
+        }
+
+        // Resize columns to match new size
+        let new_count = self.id_indexer.len();
+        self.columns.resize(new_count);
         let _ = self.apply_deferred_encodings();
     }
 

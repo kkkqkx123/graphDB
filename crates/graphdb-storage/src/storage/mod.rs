@@ -14,6 +14,7 @@ pub(crate) mod encoding;
 pub(crate) mod engine;
 pub(crate) mod index;
 pub(crate) mod naming;
+pub(crate) mod schema;
 
 mod metrics;
 pub(crate) mod persistence;

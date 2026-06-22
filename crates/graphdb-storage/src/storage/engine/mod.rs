@@ -5,6 +5,7 @@ pub mod cache_manager;
 pub mod config;
 pub mod data_store;
 pub mod graph_storage;
+pub mod migration_engine;
 pub(crate) mod params;
 pub mod paths;
 pub mod persistence_coordinator;

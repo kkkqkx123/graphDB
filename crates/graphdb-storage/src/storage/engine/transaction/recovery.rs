@@ -227,11 +227,13 @@ impl RecoveryApplier for GraphStorageContext {
         let edge_types = self.schema_manager().list_edge_types(&redo.space_name)?;
 
         for tag in tags {
-            let _ = self.drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name));
+            let storage_name = format!("space_{space_id}:tag:{}", tag.tag_name);
+            let _ = self.drop_vertex_type(&storage_name);
         }
         for edge_type in edge_types {
+            let storage_name = format!("space_{space_id}:edge:{}", edge_type.edge_type_name);
             let _ =
-                self.drop_edge_type(&edge_type_storage_name(space_id, &edge_type.edge_type_name));
+                self.drop_edge_type(&storage_name);
         }
 
         let _ = self.schema_manager().drop_space(&redo.space_name)?;
@@ -248,11 +250,13 @@ impl RecoveryApplier for GraphStorageContext {
         let edge_types = self.schema_manager().list_edge_types(&redo.space_name)?;
 
         for tag in tags {
-            let _ = self.drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name));
+            let storage_name = format!("space_{space_id}:tag:{}", tag.tag_name);
+            let _ = self.drop_vertex_type(&storage_name);
         }
         for edge_type in edge_types {
+            let storage_name = format!("space_{space_id}:edge:{}", edge_type.edge_type_name);
             let _ =
-                self.drop_edge_type(&edge_type_storage_name(space_id, &edge_type.edge_type_name));
+                self.drop_edge_type(&storage_name);
         }
 
         let _ = self.schema_manager().clear_space(&redo.space_name)?;
@@ -302,10 +306,11 @@ impl RecoveryApplier for GraphStorageContext {
             .schema_manager()
             .get_space_id(&redo.space_name)
             .unwrap_or(0);
-        let storage_name = format!("space_{space_id}:tag:{}", redo.label_name);
         let label_id = if let Some(label_id) = redo.label_id {
+            let storage_name = format!("space_{space_id}:tag:{}", redo.label_name);
             match self.create_vertex_type_with_id(
                 &storage_name,
+                &redo.label_name,
                 label_id,
                 properties.clone(),
                 &primary_key,
@@ -315,7 +320,7 @@ impl RecoveryApplier for GraphStorageContext {
                 Err(e) => return Err(e),
             }
         } else {
-            self.create_vertex_type(&storage_name, properties.clone(), &primary_key)?
+            self.create_vertex_type(&redo.label_name, properties.clone(), &primary_key)?
         };
         let tag = TagInfo::new(redo.label_name.clone()).with_properties(
             redo.schema
@@ -374,11 +379,16 @@ impl RecoveryApplier for GraphStorageContext {
             .schema_manager()
             .get_space_id(&redo.space_name)
             .unwrap_or(0);
-        let storage_name = format!("space_{space_id}:edge:{}", redo.edge_label);
         let label_id = if let Some(label_id) = redo.label_id {
+            let space_id = self
+                .schema_manager()
+                .get_space_id(&redo.space_name)
+                .unwrap_or(0);
+            let storage_name = format!("space_{space_id}:edge:{}", redo.edge_label);
             match self.create_edge_type_with_id(
                 CreateEdgeTypeParams {
                     name: &storage_name,
+                    user_name: &redo.edge_label,
                     src_label,
                     dst_label,
                     properties,
@@ -393,7 +403,7 @@ impl RecoveryApplier for GraphStorageContext {
             }
         } else {
             self.create_edge_type(
-                &storage_name,
+                &redo.edge_label,
                 src_label,
                 dst_label,
                 properties,
@@ -431,9 +441,12 @@ impl RecoveryApplier for GraphStorageContext {
         _ts: Timestamp,
     ) -> StorageResult<()> {
         let space_name = redo.space_name.as_deref().unwrap_or("");
-        let space_id = self.schema_manager().get_space_id(space_name).unwrap_or(0);
-        let storage_name = format!("space_{space_id}:tag:{}", redo.label_name);
-        self.drop_vertex_type(&storage_name)?;
+        if let Some(space_name) = &redo.space_name {
+            if let Ok(Some(space_info)) = self.schema_manager().get_space(space_name) {
+                let storage_name = format!("space_{}:tag:{}", space_info.space_id, redo.label_name);
+                self.drop_vertex_type(&storage_name)?;
+            }
+        }
         if let Some(space_name) = &redo.space_name {
             let _ = self.schema_manager().drop_tag(space_name, &redo.label_name);
         }
@@ -446,9 +459,12 @@ impl RecoveryApplier for GraphStorageContext {
         _ts: Timestamp,
     ) -> StorageResult<()> {
         let space_name = redo.space_name.as_deref().unwrap_or("");
-        let space_id = self.schema_manager().get_space_id(space_name).unwrap_or(0);
-        let storage_name = format!("space_{space_id}:edge:{}", redo.edge_label);
-        self.drop_edge_type(&storage_name)?;
+        if let Some(space_name) = &redo.space_name {
+            if let Ok(Some(space_info)) = self.schema_manager().get_space(space_name) {
+                let storage_name = format!("space_{}:edge:{}", space_info.space_id, redo.edge_label);
+                self.drop_edge_type(&storage_name)?;
+            }
+        }
         if let Some(space_name) = &redo.space_name {
             let _ = self
                 .schema_manager()

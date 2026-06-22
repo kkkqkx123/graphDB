@@ -539,4 +539,66 @@ mod tests {
         let schema = table.schema();
         assert!(schema.properties.iter().any(|p| p.name == "name"));
     }
+
+    #[test]
+    fn test_undo_maintains_vertex_schema_version() {
+        let mut vertex_tables: HashMap<LabelId, VertexTable> = HashMap::new();
+        let mut vertex_label_names: HashMap<String, LabelId> = HashMap::new();
+        let mut vertex_label_counter: LabelId = 0;
+
+        // Create vertex type (version starts at 1)
+        TransactionOps::create_vertex_type_undo(
+            &mut vertex_tables,
+            &mut vertex_label_names,
+            &mut vertex_label_counter,
+            "Person",
+        )
+        .unwrap();
+
+        let table = vertex_tables.get(&0).unwrap();
+        assert_eq!(table.schema().schema_version, 1);
+
+        // Add a property to increment version (should go to 2)
+        {
+            let table = vertex_tables.get_mut(&0).unwrap();
+            table.add_property(StoragePropertyDef::new(
+                "email".to_string(),
+                crate::core::DataType::String,
+            )).unwrap();
+        }
+
+        let table = vertex_tables.get(&0).unwrap();
+        assert_eq!(table.schema().schema_version, 2);
+
+        // Rename the property to increment version (should go to 3)
+        {
+            let table = vertex_tables.get_mut(&0).unwrap();
+            table.rename_property("email", "email_address").unwrap();
+        }
+
+        let table = vertex_tables.get(&0).unwrap();
+        let version_before_undo = table.schema().schema_version;
+        assert_eq!(version_before_undo, 3);
+
+        // Undo rename - version should remain the same (not revert to 2)
+        // because the undo operation doesn't decrement version
+        let result = TransactionOps::revert_rename_vertex_properties(
+            &mut vertex_tables,
+            &mut vertex_label_names,
+            "Person",
+            &["email_address".to_string()],
+            &["email".to_string()],
+        );
+        assert!(result.is_ok());
+
+        let table = vertex_tables.get(&0).unwrap();
+        // Version should remain at 3 after undo
+        // (undo preserves the current version, doesn't revert it)
+        assert_eq!(table.schema().schema_version, version_before_undo);
+
+        // Verify the schema was actually reverted (name changed back to email)
+        assert!(table.schema().properties.iter().any(|p| p.name == "email"));
+        assert!(!table.schema().properties.iter().any(|p| p.name == "email_address"));
+    }
+
 }

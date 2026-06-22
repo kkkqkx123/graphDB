@@ -18,14 +18,16 @@ impl GraphStorageContext {
 
     pub fn create_vertex_type_with_id(
         &self,
-        name: &str,
+        storage_name: &str,
+        user_name: &str,
         label_id: LabelId,
         properties: Vec<StoragePropertyDef>,
         primary_key: &str,
     ) -> StorageResult<LabelId> {
         super::super::schema_engine::create_vertex_type_with_id(
             self,
-            name,
+            storage_name,
+            user_name,
             label_id,
             properties,
             primary_key,

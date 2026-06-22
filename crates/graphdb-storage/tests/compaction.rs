@@ -11,7 +11,7 @@
 
 mod common;
 
-use graphdb_storage::core::types::VertexId;
+use graphdb_storage::core::types::{VertexId, CompactConfig};
 use graphdb_storage::storage::{StorageAdmin, StoragePersistenceOps, StorageReader, StorageWriter};
 
 /// Compact and reopen helper: save+checkpoint, compact, save+checkpoint, reopen.
@@ -29,7 +29,8 @@ where
     storage.save_to_disk().unwrap();
     storage.create_checkpoint().unwrap();
 
-    storage.compact(false, 0.0).unwrap();
+    let compact_config = CompactConfig::with_fixed_ratio(true, 0.8);
+    storage.compact(&compact_config).unwrap();
 
     storage.save_to_disk().unwrap();
     storage.create_checkpoint().unwrap();

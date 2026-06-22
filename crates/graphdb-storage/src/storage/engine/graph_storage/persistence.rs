@@ -726,6 +726,7 @@ mod tests {
         };
 
         ctx.create_vertex_type_with_id(
+            "space_1:tag:person",
             "person",
             1,
             vec![StoragePropertyDef::new(

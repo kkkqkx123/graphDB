@@ -91,10 +91,12 @@ pub(crate) fn drop_space(ctx: &GraphStorageContext, space: &str) -> StorageResul
     )?;
 
     for tag in tags {
-        ctx.drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name))?;
+        let storage_name = vertex_type_storage_name(space_id, &tag.tag_name);
+        ctx.drop_vertex_type(&storage_name)?;
     }
     for et in edge_types {
-        ctx.drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name))?;
+        let storage_name = edge_type_storage_name(space_id, &et.edge_type_name);
+        ctx.drop_edge_type(&storage_name)?;
     }
 
     ctx.schema_manager().drop_space(space)
@@ -118,10 +120,12 @@ pub(crate) fn clear_space(ctx: &GraphStorageContext, space: &str) -> StorageResu
     )?;
 
     for tag in tags {
-        ctx.drop_vertex_type(&vertex_type_storage_name(space_id, &tag.tag_name))?;
+        let storage_name = vertex_type_storage_name(space_id, &tag.tag_name);
+        ctx.drop_vertex_type(&storage_name)?;
     }
     for et in edge_types {
-        ctx.drop_edge_type(&edge_type_storage_name(space_id, &et.edge_type_name))?;
+        let storage_name = edge_type_storage_name(space_id, &et.edge_type_name);
+        ctx.drop_edge_type(&storage_name)?;
     }
 
     ctx.schema_manager().clear_space(space)
@@ -183,8 +187,6 @@ pub(crate) fn create_tag(
         .map(|p| p.name.as_str())
         .unwrap_or("id");
 
-    let vertex_type_name = vertex_type_storage_name(space_id, &tag.tag_name);
-
     // IMPORTANT: Transaction order (fixed from previous implementation):
     // 1. Create in schema_manager first (metadata update)
     // 2. Create in storage_engine (memory structures)
@@ -197,7 +199,8 @@ pub(crate) fn create_tag(
     let tag_id_returned = ctx.schema_manager().create_tag(space, tag)?;
 
     ctx.create_vertex_type_with_id(
-        &vertex_type_name,
+        &vertex_type_storage_name(space_id, &tag.tag_name),
+        &tag.tag_name,
         tag_id_returned,
         properties,
         primary_key,
@@ -228,7 +231,8 @@ pub(crate) fn drop_tag(
         },
     )?;
 
-    ctx.drop_vertex_type(&vertex_type_storage_name(space_id, tag_name))?;
+    let storage_name = vertex_type_storage_name(space_id, tag_name);
+    ctx.drop_vertex_type(&storage_name)?;
 
     ctx.schema_manager().drop_tag(space, tag_name)
 }
@@ -342,6 +346,7 @@ pub(crate) fn create_edge_type(
     ctx.create_edge_type_with_id(
         CreateEdgeTypeParams {
             name: &edge_type_storage_name(space_id, &edge_type.edge_type_name),
+            user_name: &edge_type.edge_type_name,
             src_label: src_label_id,
             dst_label: dst_label_id,
             properties,
@@ -378,7 +383,8 @@ pub(crate) fn drop_edge_type(
         },
     )?;
 
-    ctx.drop_edge_type(&edge_type_storage_name(space_id, edge_type_name))?;
+    let storage_name = edge_type_storage_name(space_id, edge_type_name);
+    ctx.drop_edge_type(&storage_name)?;
 
     ctx.schema_manager().drop_edge_type(space, edge_type_name)
 }
@@ -400,6 +406,7 @@ pub(crate) fn ensure_graph_types_from_schema(ctx: &GraphStorageContext) -> Stora
                 .unwrap_or("id");
             let result = ctx.create_vertex_type_with_id(
                 &vertex_type_storage_name(space_id, &tag.tag_name),
+                &tag.tag_name,
                 tag.tag_id,
                 properties,
                 primary_key,
@@ -434,6 +441,7 @@ pub(crate) fn ensure_graph_types_from_schema(ctx: &GraphStorageContext) -> Stora
             let result = ctx.create_edge_type_with_id(
                 CreateEdgeTypeParams {
                     name: &edge_type_storage_name(space_id, &edge_type.edge_type_name),
+                    user_name: &edge_type.edge_type_name,
                     src_label,
                     dst_label,
                     properties,
