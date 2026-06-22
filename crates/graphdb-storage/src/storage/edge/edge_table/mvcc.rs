@@ -53,7 +53,7 @@ impl MVCCManager {
     }
 
     /// Check if an edge is tombstoned at a given timestamp
-    /// Uses hot-first lookup: checks hashtables first, then cold layer
+    /// Uses hot-first lookup: checks hashtables first, then cold layer with binary search
     pub fn is_tombstoned(&self, edge_id: EdgeId, ts: Timestamp) -> bool {
         // Hot layer: fast path - O(1) average
         let pending_deleted = self.pending_segment_deletions
@@ -72,15 +72,19 @@ impl MVCCManager {
             return true;
         }
 
-        // Cold layer: only checked if hot layer misses
-        // For large cold layers, consider binary search if sorted
-        for (stored_id, delete_ts) in &self.cold_tombstones {
-            if *stored_id == edge_id && *delete_ts <= ts {
-                return true;
-            }
-        }
+        // Cold layer: only checked if hot layer misses - O(log n) binary search
+        self.is_tombstoned_cold(edge_id, ts)
+    }
 
-        false
+    /// Check if an edge is tombstoned in cold layer using binary search.
+    ///
+    /// The cold layer is kept sorted by EdgeId for efficient lookups.
+    /// Returns true if the edge exists in cold layer with delete_ts <= ts.
+    fn is_tombstoned_cold(&self, edge_id: EdgeId, ts: Timestamp) -> bool {
+        match self.cold_tombstones.binary_search_by_key(&edge_id, |&(id, _)| id) {
+            Ok(idx) => self.cold_tombstones[idx].1 <= ts,
+            Err(_) => false,
+        }
     }
 
     /// Garbage collect tombstones that are no longer needed for snapshot isolation.
@@ -90,7 +94,7 @@ impl MVCCManager {
     /// have ts >= min_active_snapshot_ts.
     ///
     /// Also manages hot/cold layer promotion: if hot layer exceeds threshold,
-    /// older entries are moved to cold layer.
+    /// older entries are moved to cold layer (kept sorted by EdgeId for binary search).
     pub fn gc_tombstones(&mut self, min_active_snapshot_ts: Timestamp) -> usize {
         let before = self.tombstones.len() + self.cold_tombstones.len();
 
@@ -107,12 +111,14 @@ impl MVCCManager {
         self.min_active_snapshot_ts = min_active_snapshot_ts;
 
         // If hot layer is too large, move old entries to cold layer
+        // Cold layer is kept sorted by EdgeId for efficient binary search
         if self.tombstones.len() > HOT_TOMBSTONE_GC_THRESHOLD {
             let mut to_move = Vec::new();
             for (edge_id, ts) in self.tombstones.iter() {
                 to_move.push((*edge_id, *ts));
             }
-            to_move.sort_by_key(|k| k.1);
+            // Sort by EdgeId to maintain cold layer invariant for binary search
+            to_move.sort_by_key(|k| k.0);
 
             let move_count = (to_move.len() as f64 * 0.3) as usize;
             for i in 0..move_count {
@@ -120,6 +126,9 @@ impl MVCCManager {
                 self.tombstones.remove(&edge_id);
                 self.cold_tombstones.push((edge_id, ts));
             }
+
+            // Ensure cold layer remains sorted for binary search
+            self.cold_tombstones.sort_by_key(|k| k.0);
         }
 
         let after = self.tombstones.len() + self.cold_tombstones.len();
@@ -217,6 +226,7 @@ impl MVCCManager {
 #[cfg(test)]
 mod tests {
     use super::super::super::*;
+    use super::*;
     use crate::core::Value;
     use crate::core::types::EdgeId;
 
@@ -405,5 +415,109 @@ mod tests {
 
         table.mvcc.unregister_active_snapshot(1);
         assert_eq!(table.mvcc.active_snapshot_count(), 1);
+    }
+
+    #[test]
+    fn test_cold_layer_binary_search() {
+        let mut mvcc = MVCCManager::new();
+
+        // Add 100 tombstones to cold layer, sorted by EdgeId
+        for i in 0..100 {
+            mvcc.cold_tombstones.push((EdgeId(i as u64), 100 + i as u32));
+        }
+        mvcc.cold_tombstones.sort_by_key(|k| k.0);
+
+        // Test binary search - all should be found
+        for i in 0..100 {
+            assert!(mvcc.is_tombstoned_cold(EdgeId(i as u64), u32::MAX));
+        }
+
+        // Test edge cases
+        assert!(!mvcc.is_tombstoned_cold(EdgeId(200), u32::MAX)); // Not in cold layer
+        assert!(!mvcc.is_tombstoned_cold(EdgeId(0), 50)); // Before delete_ts
+    }
+
+    #[test]
+    fn test_cold_layer_lookup_performance() {
+        let mut mvcc = MVCCManager::new();
+
+        // Add 100K tombstones to cold layer, simulating large delete set
+        for i in 0..100_000 {
+            mvcc.cold_tombstones.push((EdgeId(i as u64), u32::MAX - 1));
+        }
+        mvcc.cold_tombstones.sort_by_key(|k| k.0);
+
+        let start = std::time::Instant::now();
+        for i in 0..10_000 {
+            let idx = i * 10; // Sparse queries
+            let _ = mvcc.is_tombstoned(EdgeId(idx as u64), u32::MAX);
+        }
+        let elapsed = start.elapsed();
+
+        // O(log n) should complete in microseconds for 10K queries over 100K items
+        // This should be well under 100ms (typical desktop: ~10-30ms for optimized binary search)
+        println!("Cold layer lookup performance: 10K queries over 100K items in {:?}", elapsed);
+        assert!(
+            elapsed.as_millis() < 200,
+            "Binary search too slow: {:?} (expected <200ms for 10K queries over 100K items)",
+            elapsed
+        );
+    }
+
+    #[test]
+    fn test_hot_to_cold_promotion_maintains_sorted_order() {
+        let mut mvcc = MVCCManager::new();
+
+        // Fill hot layer to trigger promotion
+        // Use timestamps well above GC threshold to avoid premature cleanup
+        for i in 0..200_000 {
+            mvcc.tombstones.insert(EdgeId(i as u64), 10_000 + (i as u32 % 1000));
+        }
+
+        assert!(mvcc.tombstones.len() > HOT_TOMBSTONE_GC_THRESHOLD);
+
+        // Trigger GC which promotes hot to cold
+        // Use min_ts that keeps most tombstones (allowing promotion to occur)
+        mvcc.gc_tombstones(9_500);
+
+        // Verify cold layer is sorted by EdgeId (required for binary search)
+        if mvcc.cold_tombstones.len() > 1 {
+            for i in 0..mvcc.cold_tombstones.len() - 1 {
+                assert!(
+                    mvcc.cold_tombstones[i].0 < mvcc.cold_tombstones[i + 1].0,
+                    "Cold layer not sorted at index {}",
+                    i
+                );
+            }
+        }
+
+        // Verify we can still use binary search after promotion
+        if mvcc.cold_tombstones.len() > 0 {
+            let first_edge_id = mvcc.cold_tombstones[0].0;
+            assert!(mvcc.is_tombstoned_cold(first_edge_id, u32::MAX));
+        }
+    }
+
+    #[test]
+    fn test_hot_layer_with_cold_layer_integration() {
+        let mut mvcc = MVCCManager::new();
+
+        // Add to hot layer
+        mvcc.tombstones.insert(EdgeId(1), 100);
+        mvcc.tombstones.insert(EdgeId(2), 150);
+
+        // Add to cold layer (pre-sorted)
+        mvcc.cold_tombstones = vec![(EdgeId(10), 200), (EdgeId(20), 250)];
+
+        // Test queries across both layers
+        assert!(mvcc.is_tombstoned(EdgeId(1), u32::MAX)); // Hot layer
+        assert!(mvcc.is_tombstoned(EdgeId(10), u32::MAX)); // Cold layer via binary search
+        assert!(!mvcc.is_tombstoned(EdgeId(999), u32::MAX)); // Neither layer
+
+        // Verify GC doesn't break cold layer sort
+        mvcc.gc_tombstones(120);
+        for i in 0..mvcc.cold_tombstones.len() - 1 {
+            assert!(mvcc.cold_tombstones[i].0 < mvcc.cold_tombstones[i + 1].0);
+        }
     }
 }

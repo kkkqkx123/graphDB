@@ -13,13 +13,15 @@ pub(crate) mod edge;
 pub(crate) mod encoding;
 pub(crate) mod engine;
 pub(crate) mod index;
+pub mod mvcc;
 pub(crate) mod naming;
 pub(crate) mod schema;
+pub mod sync;
 
 mod metrics;
 pub(crate) mod persistence;
 pub(crate) mod types;
-pub(crate) mod vertex;
+pub mod vertex;
 
 #[cfg(any(test, feature = "test-support"))]
 mod test_mock;
@@ -34,6 +36,10 @@ pub use engine::persistence_coordinator::{CheckpointStats, SnapshotStats};
 pub use engine::sync_wrapper::SyncWrapper;
 pub use engine::transaction::UndoTarget;
 pub use metrics::MetricsStorage;
+pub use mvcc::{MVCCTable, SnapshotHandle, TieredTombstoneManager, TombstoneEntry};
+pub use sync::{EdgeTableSync, PropertyTableSync, SnapshotGuard, VertexTableSync};
+pub use types::StoragePropertyDef;
+pub use vertex::{VertexSchema, VertexTable};
 
 pub use crate::core::StorageError;
 

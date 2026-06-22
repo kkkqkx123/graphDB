@@ -23,6 +23,7 @@ use super::super::{ColumnStore, IdIndexer, IdKey, LabelId, Timestamp, VertexId, 
 use crate::core::{StorageError, StorageResult, Value};
 use crate::core::error::storage::StorageErrorKind;
 use crate::storage::schema::{LabelVersionHistory, SchemaObjectType};
+use crate::storage::mvcc::{MVCCTable, SnapshotHandle};
 
 #[derive(Debug, Clone)]
 pub struct VertexTableConfig {
@@ -35,6 +36,17 @@ impl Default for VertexTableConfig {
             initial_capacity: 4096,
         }
     }
+}
+
+/// MVCC snapshot tracking for VertexTable
+#[derive(Debug)]
+pub struct VertexMVCC {
+    /// Maps timestamp → count of active snapshots at that timestamp
+    active_snapshots: HashMap<Timestamp, usize>,
+    /// Minimum timestamp among all active snapshots
+    min_active_snapshot_ts: Timestamp,
+    /// Counter for generating unique snapshot IDs
+    handle_counter: u64,
 }
 
 #[derive(Debug)]
@@ -52,6 +64,8 @@ pub struct VertexTable {
     pub(super) property_index_cache: HashMap<String, usize>,
     /// Version history tracking for schema changes
     pub(super) version_history: Arc<Mutex<LabelVersionHistory>>,
+    /// MVCC snapshot tracking for snapshot isolation
+    pub(super) mvcc: VertexMVCC,
 }
 
 impl VertexTable {
@@ -91,6 +105,11 @@ impl VertexTable {
             deferred_encodings: std::collections::HashMap::new(),
             property_index_cache,
             version_history,
+            mvcc: VertexMVCC {
+                active_snapshots: HashMap::new(),
+                min_active_snapshot_ts: u32::MAX,
+                handle_counter: 0,
+            },
         }
     }
 
@@ -608,6 +627,98 @@ impl VertexTable {
     #[cfg(not(debug_assertions))]
     pub fn verify_invariants(&self) -> StorageResult<()> {
         Ok(())
+    }
+
+    // ==================== MVCC Methods ====================
+
+    /// Register a new snapshot at the given timestamp
+    ///
+    /// Increments the reference count for this timestamp and tracks it in active_snapshots.
+    /// Returns a unique SnapshotHandle that must be used to unregister later.
+    pub fn register_snapshot(&mut self, ts: Timestamp) -> StorageResult<SnapshotHandle> {
+        *self.mvcc.active_snapshots.entry(ts).or_insert(0) += 1;
+        self.mvcc.min_active_snapshot_ts = self.mvcc.active_snapshots
+            .keys()
+            .min()
+            .copied()
+            .unwrap_or(u32::MAX);
+
+        self.mvcc.handle_counter += 1;
+        Ok(SnapshotHandle::new(ts, self.mvcc.handle_counter))
+    }
+
+    /// Unregister a snapshot, allowing GC of related version data
+    ///
+    /// Decrements the reference count for the snapshot's timestamp.
+    /// When the count reaches 0, the timestamp is removed from tracking.
+    pub fn unregister_snapshot(&mut self, handle: SnapshotHandle) -> StorageResult<()> {
+        if let Some(count) = self.mvcc.active_snapshots.get_mut(&handle.ts) {
+            *count = count.saturating_sub(1);
+            if *count == 0 {
+                self.mvcc.active_snapshots.remove(&handle.ts);
+            }
+        }
+
+        // Update min_active_snapshot_ts
+        self.mvcc.min_active_snapshot_ts = self.mvcc.active_snapshots
+            .keys()
+            .min()
+            .copied()
+            .unwrap_or(u32::MAX);
+
+        Ok(())
+    }
+
+    /// Get the count of currently active snapshots
+    pub fn active_snapshot_count(&self) -> usize {
+        self.mvcc.active_snapshots.len()
+    }
+
+    /// Get the minimum timestamp among all active snapshots
+    pub fn min_active_snapshot_ts(&self) -> Timestamp {
+        self.mvcc.min_active_snapshot_ts
+    }
+
+    /// Perform garbage collection on version data older than min_ts
+    ///
+    /// This is a placeholder implementation for VertexTable.
+    /// In practice, garbage collection would remove old timestamp entries
+    /// from the timestamps structure that are older than min_ts and no longer
+    /// needed by any active snapshot.
+    ///
+    /// Returns the number of version entries cleaned up.
+    pub fn gc(&mut self, min_ts: Timestamp) -> StorageResult<usize> {
+        // In VertexTable, we don't have explicit versioned data to clean up yet.
+        // The timestamp structure tracks valid/invalid periods for each vertex.
+        // GC would mark timestamps older than min_ts as eligible for reuse,
+        // but this is handled at a higher level during compaction.
+
+        // For now, return 0 as a placeholder
+        // Future optimization: track and clean up unused timestamp ranges
+        Ok(0)
+    }
+}
+
+/// Implement MVCCTable trait for VertexTable to support snapshot isolation
+impl MVCCTable for VertexTable {
+    fn register_snapshot(&mut self, ts: Timestamp) -> StorageResult<SnapshotHandle> {
+        VertexTable::register_snapshot(self, ts)
+    }
+
+    fn unregister_snapshot(&mut self, handle: SnapshotHandle) -> StorageResult<()> {
+        VertexTable::unregister_snapshot(self, handle)
+    }
+
+    fn active_snapshot_count(&self) -> usize {
+        VertexTable::active_snapshot_count(self)
+    }
+
+    fn min_active_snapshot_ts(&self) -> Timestamp {
+        VertexTable::min_active_snapshot_ts(self)
+    }
+
+    fn gc(&mut self, min_ts: Timestamp) -> StorageResult<usize> {
+        VertexTable::gc(self, min_ts)
     }
 }
 
@@ -1304,6 +1415,179 @@ mod tests {
             table.id_indexer.len(),
             "columns row_count must match id_indexer size"
         );
+    }
+
+    // ==================== MVCC Tests ====================
+
+    #[test]
+    fn test_vertex_snapshot_isolation() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        // Time 1: Insert vertex
+        table.insert(
+            "v1",
+            &[("name".to_string(), Value::String("Alice".to_string()))],
+            100,
+        )
+        .unwrap();
+
+        // Time 2: Register snapshot at insert time
+        let snap1 = table.register_snapshot(100).unwrap();
+        assert_eq!(table.active_snapshot_count(), 1);
+        assert_eq!(table.min_active_snapshot_ts(), 100);
+
+        // Time 3: Modify vertex at later timestamp
+        table.update_property(0, "name", &Value::String("Alice Updated".to_string()), 200)
+            .unwrap();
+
+        // Time 4: Delete vertex at even later timestamp
+        table.delete("v1", 300).unwrap();
+
+        // Snapshot should still see original data at ts=100
+        assert!(table.get_by_internal_id(0, 100).is_some());
+
+        // Current query at ts=300 should see deletion
+        assert!(table.get_internal_id("v1", 300).is_none());
+
+        // Unregister snapshot
+        table.unregister_snapshot(snap1).unwrap();
+        assert_eq!(table.active_snapshot_count(), 0);
+        assert_eq!(table.min_active_snapshot_ts(), u32::MAX);
+    }
+
+    #[test]
+    fn test_vertex_multiple_snapshots() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        // Create vertices at different times
+        table.insert(
+            "v1",
+            &[("name".to_string(), Value::String("Alice".to_string()))],
+            100,
+        )
+        .unwrap();
+
+        // Register first snapshot at ts=100
+        let snap1 = table.register_snapshot(100).unwrap();
+        assert_eq!(table.min_active_snapshot_ts(), 100);
+
+        // Create another vertex
+        table.insert(
+            "v2",
+            &[("name".to_string(), Value::String("Bob".to_string()))],
+            150,
+        )
+        .unwrap();
+
+        // Register second snapshot at ts=200
+        let snap2 = table.register_snapshot(200).unwrap();
+        assert_eq!(table.active_snapshot_count(), 2);
+        assert_eq!(table.min_active_snapshot_ts(), 100); // min of (100, 200)
+
+        // Delete v1
+        table.delete("v1", 250).unwrap();
+
+        // snap1 (ts=100) should see both v1 and v2 (only v1 because v2 inserted at 150 > 100)
+        let v1_at_snap1 = table.get_by_internal_id(0, 100);
+        assert!(v1_at_snap1.is_some());
+
+        // snap2 (ts=200) should see v1 but not deletion (deletion at ts=250 > 200)
+        let v1_at_snap2 = table.get_by_internal_id(0, 200);
+        assert!(v1_at_snap2.is_some());
+
+        // Current view should not see v1 (deleted at 250)
+        assert!(table.get_by_internal_id(0, 300).is_none());
+
+        // Unregister snapshots
+        table.unregister_snapshot(snap1).unwrap();
+        assert_eq!(table.active_snapshot_count(), 1);
+        assert_eq!(table.min_active_snapshot_ts(), 200);
+
+        table.unregister_snapshot(snap2).unwrap();
+        assert_eq!(table.active_snapshot_count(), 0);
+        assert_eq!(table.min_active_snapshot_ts(), u32::MAX);
+    }
+
+    #[test]
+    fn test_vertex_concurrent_snapshots_same_timestamp() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        table.insert(
+            "v1",
+            &[("name".to_string(), Value::String("Alice".to_string()))],
+            100,
+        )
+        .unwrap();
+
+        // Register multiple snapshots at the same timestamp
+        let snap1 = table.register_snapshot(100).unwrap();
+        let snap2 = table.register_snapshot(100).unwrap();
+
+        // Should track both snapshots even though at same timestamp
+        assert_eq!(table.active_snapshot_count(), 1); // One timestamp
+        assert_eq!(table.min_active_snapshot_ts(), 100);
+
+        // Each has its own handle ID
+        assert_ne!(snap1.id, snap2.id);
+        assert_eq!(snap1.ts, snap2.ts);
+
+        // Unregister first snapshot - second should still be active
+        table.unregister_snapshot(snap1).unwrap();
+        assert_eq!(table.active_snapshot_count(), 1);
+        assert_eq!(table.min_active_snapshot_ts(), 100);
+
+        // Unregister second snapshot
+        table.unregister_snapshot(snap2).unwrap();
+        assert_eq!(table.active_snapshot_count(), 0);
+        assert_eq!(table.min_active_snapshot_ts(), u32::MAX);
+    }
+
+    #[test]
+    fn test_vertex_gc_placeholder() {
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        table.insert(
+            "v1",
+            &[("name".to_string(), Value::String("Alice".to_string()))],
+            100,
+        )
+        .unwrap();
+
+        // GC should be a no-op for VertexTable (placeholder)
+        let cleaned = table.gc(200).unwrap();
+        assert_eq!(cleaned, 0);
+
+        // Table should still be intact
+        assert!(table.get_by_internal_id(0, 100).is_some());
+    }
+
+    #[test]
+    fn test_vertex_mvcc_table_trait() {
+        use crate::storage::mvcc::MVCCTable;
+
+        let schema = create_test_schema();
+        let mut table = VertexTable::new(0, "person".to_string(), schema);
+
+        table.insert(
+            "v1",
+            &[("name".to_string(), Value::String("Alice".to_string()))],
+            100,
+        )
+        .unwrap();
+
+        // Test through trait interface
+        let snap = <VertexTable as MVCCTable>::register_snapshot(&mut table, 100).unwrap();
+        assert_eq!(table.active_snapshot_count(), 1);
+
+        <VertexTable as MVCCTable>::unregister_snapshot(&mut table, snap).unwrap();
+        assert_eq!(table.active_snapshot_count(), 0);
+
+        let gc_count = <VertexTable as MVCCTable>::gc(&mut table, 200).unwrap();
+        assert_eq!(gc_count, 0);
     }
 }
 
