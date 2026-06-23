@@ -11,7 +11,7 @@ use crate::core::types::{EdgeId, CompactConfig, LabelId, VertexId, Timestamp};
 use crate::core::{DataType, StorageError, StorageResult, Value};
 use crate::storage::types::{PropertyId, StoragePropertyDef};
 use crate::storage::edge::PropertyTable;
-use crate::storage::schema::{LabelVersionHistory, SchemaObjectType, ChangeDetails, SchemaChange};
+use crate::storage::schema::{LabelVersionHistory, SchemaObjectType, ChangeDetails, PropertyChange};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
@@ -712,7 +712,7 @@ impl EdgeTableCore {
         self.schema.increment_version();
 
         // Record schema change
-        let change = SchemaChange::new(
+        let change = PropertyChange::new(
             self.schema.schema_version,
             SchemaObjectType::Edge,
             self.label,
@@ -759,7 +759,7 @@ impl EdgeTableCore {
         self.schema.increment_version();
 
         // Record schema change
-        let change = SchemaChange::new(
+        let change = PropertyChange::new(
             self.schema.schema_version,
             SchemaObjectType::Edge,
             self.label,
@@ -807,7 +807,7 @@ impl EdgeTableCore {
         self.schema.increment_version();
 
         // Record schema change
-        let change = SchemaChange::new(
+        let change = PropertyChange::new(
             self.schema.schema_version,
             SchemaObjectType::Edge,
             self.label,

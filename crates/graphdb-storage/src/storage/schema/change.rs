@@ -135,9 +135,9 @@ impl ChangeDetails {
     }
 }
 
-/// Schema change event - represents a single schema modification
+/// Property change event - represents a single property schema modification
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SchemaChange {
+pub struct PropertyChange {
     /// Version at which this change occurred
     pub version: u64,
     /// Timestamp in milliseconds when the change was made
@@ -154,8 +154,8 @@ pub struct SchemaChange {
     pub checksum: u32,
 }
 
-impl SchemaChange {
-    /// Create a new schema change event
+impl PropertyChange {
+    /// Create a new property change event
     pub fn new(
         version: u64,
         object_type: SchemaObjectType,
@@ -205,7 +205,7 @@ pub struct ChangeLog {
     /// Label name
     pub label_name: String,
     /// All changes for this label, indexed by version
-    pub changes: HashMap<u64, Vec<SchemaChange>>,
+    pub changes: HashMap<u64, Vec<PropertyChange>>,
 }
 
 impl ChangeLog {
@@ -224,7 +224,7 @@ impl ChangeLog {
     }
 
     /// Add a change to the log
-    pub fn add_change(&mut self, change: SchemaChange) {
+    pub fn add_change(&mut self, change: PropertyChange) {
         self.changes
             .entry(change.version)
             .or_insert_with(Vec::new)
@@ -232,7 +232,7 @@ impl ChangeLog {
     }
 
     /// Get changes for a specific version
-    pub fn get_version_changes(&self, version: u64) -> Option<&Vec<SchemaChange>> {
+    pub fn get_version_changes(&self, version: u64) -> Option<&Vec<PropertyChange>> {
         self.changes.get(&version)
     }
 
@@ -249,7 +249,7 @@ impl ChangeLog {
     }
 
     /// Get all breaking changes
-    pub fn get_breaking_changes(&self) -> Vec<SchemaChange> {
+    pub fn get_breaking_changes(&self) -> Vec<PropertyChange> {
         self.changes
             .values()
             .flat_map(|changes| {
@@ -268,8 +268,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_schema_change_creation() {
-        let change = SchemaChange::new(
+    fn test_property_change_creation() {
+        let change = PropertyChange::new(
             1,
             SchemaObjectType::Vertex,
             1,
@@ -290,7 +290,7 @@ mod tests {
 
     #[test]
     fn test_breaking_changes() {
-        let breaking_change = SchemaChange::new(
+        let breaking_change = PropertyChange::new(
             1,
             SchemaObjectType::Vertex,
             1,
@@ -308,7 +308,7 @@ mod tests {
     fn test_changelog_operations() {
         let mut log = ChangeLog::new(SchemaObjectType::Vertex, 1, "User".to_string());
 
-        let change1 = SchemaChange::new(
+        let change1 = PropertyChange::new(
             1,
             SchemaObjectType::Vertex,
             1,

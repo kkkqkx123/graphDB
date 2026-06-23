@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use crate::core::StorageResult;
-use super::change::{ChangeDetails, SchemaChange};
+use super::change::{ChangeDetails, PropertyChange};
 use crate::storage::types::StoragePropertyDef;
 
 /// Type of breaking change
@@ -16,6 +16,8 @@ pub enum BreakingChangeType {
     PropertyRemoved,
     /// A property's type was changed (incompatible)
     PropertyTypeChanged,
+    /// A required property was added without default (old data incompatible)
+    PropertyAddedRequired,
     /// The primary key was changed
     PrimaryKeyRemoved,
 }
@@ -31,6 +33,8 @@ pub enum NonBreakingChangeType {
     PropertyRenamed,
     /// Property became nullable (more permissive)
     PropertyBecameNullable,
+    /// Property type was widened (compatible extension)
+    PropertyTypeWidened,
 }
 
 /// Breaking change details with information for migration
@@ -133,8 +137,12 @@ impl CompatibilityAnalysis {
                 MigrationStrategy::SimpleMapping
             }
         } else {
-            // For now, all breaking changes require manual intervention
-            MigrationStrategy::ManualIntervention
+            // Distinguish between auto-convertible and manual-intervention cases
+            if self.can_auto_convert_breaking_changes() {
+                MigrationStrategy::ComplexTransformation
+            } else {
+                MigrationStrategy::ManualIntervention
+            }
         };
     }
 
@@ -157,6 +165,21 @@ impl Default for CompatibilityAnalysis {
     }
 }
 
+impl CompatibilityAnalysis {
+    /// Check if all breaking changes can be auto-converted
+    fn can_auto_convert_breaking_changes(&self) -> bool {
+        // Auto-convertible scenarios:
+        // - PropertyTypeChanged: certain type conversions can be automated (Int32→Int64)
+        // Non-convertible scenarios:
+        // - PropertyRemoved: data loss, requires strategy
+        // - PropertyAddedRequired: requires default value strategy
+        // - PrimaryKeyRemoved: requires reindexing strategy
+        self.breaking_changes.iter().all(|bc| {
+            matches!(bc.change_type, BreakingChangeType::PropertyTypeChanged)
+        })
+    }
+}
+
 /// Analyzes schema changes between two versions
 pub struct CompatibilityAnalyzer;
 
@@ -165,7 +188,7 @@ impl CompatibilityAnalyzer {
     pub fn analyze(
         old_properties: &[StoragePropertyDef],
         new_properties: &[StoragePropertyDef],
-        schema_changes: &[SchemaChange],
+        schema_changes: &[PropertyChange],
     ) -> CompatibilityAnalysis {
         let mut analysis = CompatibilityAnalysis::new();
 
@@ -206,7 +229,7 @@ impl CompatibilityAnalyzer {
                         // Non-nullable property without default - this is technically breaking
                         // because old data cannot be auto-filled
                         analysis.add_breaking_change(BreakingChange {
-                            change_type: BreakingChangeType::PropertyRemoved,
+                            change_type: BreakingChangeType::PropertyAddedRequired,
                             property_name: Some(name.clone()),
                             description: format!(
                                 "Added required property '{}' without default (old data incompatible)",
@@ -240,7 +263,7 @@ impl CompatibilityAnalyzer {
                     // Check if type change is compatible
                     if Self::are_types_compatible(old_type, new_type) {
                         analysis.add_non_breaking_change(NonBreakingChange {
-                            change_type: NonBreakingChangeType::PropertyRenamed,
+                            change_type: NonBreakingChangeType::PropertyTypeWidened,
                             property_name: Some(name.clone()),
                             description: format!(
                                 "Changed property '{}' type from {:?} to {:?}",

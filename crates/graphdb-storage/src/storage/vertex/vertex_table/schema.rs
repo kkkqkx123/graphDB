@@ -5,7 +5,7 @@
 
 use crate::core::StorageResult;
 use crate::storage::types::StoragePropertyDef;
-use crate::storage::schema::{ChangeDetails, SchemaChange, SchemaObjectType};
+use crate::storage::schema::{ChangeDetails, PropertyChange, SchemaObjectType};
 
 use super::core::VertexTable;
 
@@ -34,7 +34,7 @@ impl VertexTable {
         self.schema.increment_version();
 
         // Record schema change
-        let change = SchemaChange::new(
+        let change = PropertyChange::new(
             self.schema.schema_version,
             SchemaObjectType::Vertex,
             self.label,
@@ -94,7 +94,7 @@ impl VertexTable {
         self.schema.increment_version();
 
         // Record schema change
-        let change = SchemaChange::new(
+        let change = PropertyChange::new(
             self.schema.schema_version,
             SchemaObjectType::Vertex,
             self.label,
@@ -145,7 +145,7 @@ impl VertexTable {
         self.schema.increment_version();
 
         // Record schema change
-        let change = SchemaChange::new(
+        let change = PropertyChange::new(
             self.schema.schema_version,
             SchemaObjectType::Vertex,
             self.label,
