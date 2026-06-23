@@ -5,8 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::core::{DataType, Value, StorageError, StorageResult};
-use crate::storage::types::StoragePropertyDef;
+use crate::core::{DataType, Value};
 
 /// Type identifier for change tracking - distinguishes between vertex and edge schema changes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -150,8 +149,6 @@ pub struct PropertyChange {
     pub label_name: String,
     /// Detailed information about the change
     pub details: ChangeDetails,
-    /// Checksum for integrity verification (currently unused, reserved for future)
-    pub checksum: u32,
 }
 
 impl PropertyChange {
@@ -175,7 +172,6 @@ impl PropertyChange {
             label_id,
             label_name,
             details,
-            checksum: 0,
         }
     }
 

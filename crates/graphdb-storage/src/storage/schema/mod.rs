@@ -1,24 +1,34 @@
-//! Schema version tracking and migration framework
+//! Schema change tracking and version management
 //!
-//! This module provides comprehensive schema versioning, change tracking,
-//! compatibility analysis, and migration support for the storage engine.
+//! This module provides comprehensive schema change tracking and version management:
+//!
+//! - **Change Tracking**: Record every atomic schema modification (PropertyAdded, PropertyRemoved, etc.)
+//! - **Change History**: Maintain per-label change logs indexed by version
+//! - **Version Management**: Track schema versions and detect breaking changes between versions
 //!
 //! ## Components
 //!
-//! - `change`: Schema change events and history logs
-//! - `version_history`: Version snapshots and compatibility tracking
-//! - `compatibility`: Compatibility analysis and migration strategies
-//! - `migration_engine`: Schema migration planning and execution (Phase 2)
+//! - `change`: Schema change events (`PropertyChange`, `ChangeDetails`) and change logs
+//! - `version_history`: Version tracking for each label (`LabelVersionHistory`, `SchemaVersionHistory`)
+//!
+//! ## Current Capabilities
+//!
+//! - Record atomic schema changes via `PropertyChange` events
+//! - Store changes in `ChangeLog` indexed by version number
+//! - Query version history and detect breaking changes via `can_migrate()`
+//!
+//! ## Not Currently Supported
+//!
+//! - Automatic data migration on schema changes
+//! - Zero-downtime schema upgrades
+//! - Compatibility scoring and migration strategies
+//!
+//! If these features are needed in the future, refer to git history for the migration framework design.
 
 pub mod change;
-pub mod compatibility;
 pub mod version_history;
 
 pub use change::{ChangeDetails, ChangeLog, PropertyChange, SchemaObjectType};
-pub use compatibility::{
-    CompatibilityAnalysis, CompatibilityAnalyzer, BreakingChange, NonBreakingChange,
-    MigrationStrategy,
-};
 pub use version_history::{
     LabelVersionHistory, SchemaVersionHistory,
 };

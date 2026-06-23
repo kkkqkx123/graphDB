@@ -17,8 +17,6 @@ pub struct LabelVersionHistory {
     pub label_name: String,
     /// Object type (vertex or edge)
     pub object_type: SchemaObjectType,
-    /// Ordered list of version numbers
-    pub version_sequence: Vec<u64>,
     /// Change log for this label
     pub change_log: ChangeLog,
 }
@@ -30,7 +28,6 @@ impl LabelVersionHistory {
             label_id,
             label_name: label_name.clone(),
             object_type,
-            version_sequence: Vec::new(),
             change_log: ChangeLog::new(object_type, label_id, label_name),
         }
     }
@@ -42,7 +39,7 @@ impl LabelVersionHistory {
 
     /// Get the latest version
     pub fn latest_version(&self) -> u64 {
-        *self.version_sequence.last().unwrap_or(&1)
+        self.change_log.latest_version().unwrap_or(1)
     }
 
     /// Check if a migration path exists (no breaking changes between versions)
@@ -63,8 +60,8 @@ impl LabelVersionHistory {
     }
 
     /// Get all versions in order
-    pub fn get_versions(&self) -> &[u64] {
-        &self.version_sequence
+    pub fn get_versions(&self) -> Vec<u64> {
+        self.change_log.get_versions()
     }
 
     /// Get breaking changes between two versions
