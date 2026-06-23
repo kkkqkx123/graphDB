@@ -70,6 +70,9 @@ pub struct EdgeTableCore {
     pub stats_manager: Option<std::sync::Arc<crate::core::stats::StatsManager>>,
     /// Version history tracking for schema changes
     pub version_history: Arc<Mutex<LabelVersionHistory>>,
+    /// Cache for property name → schema index mapping to avoid O(n) linear lookups.
+    /// Invalidated whenever schema changes.
+    pub property_index_cache: HashMap<String, usize>,
 }
 
 impl EdgeTableCore {
@@ -103,6 +106,11 @@ impl EdgeTableCore {
             LabelVersionHistory::new(label_id, label_name.clone(), SchemaObjectType::Edge)
         ));
 
+        let mut property_index_cache = HashMap::new();
+        for (idx, prop) in schema.properties.iter().enumerate() {
+            property_index_cache.insert(prop.name.clone(), idx);
+        }
+
         Ok(Self {
             label: label_id,
             label_name,
@@ -122,6 +130,7 @@ impl EdgeTableCore {
             config,
             stats_manager: None,
             version_history,
+            property_index_cache,
         })
     }
 
@@ -357,12 +366,11 @@ impl EdgeTableCore {
 
         let mut converted_values: Vec<(String, Value)> = Vec::with_capacity(property_values.len());
         for (name, value) in property_values {
-            let prop_def = self
-                .schema
-                .properties
-                .iter()
-                .find(|p| p.name == *name)
+            let prop_idx = self
+                .property_index_cache
+                .get(name)
                 .ok_or_else(|| StorageError::column_not_found(name.clone()))?;
+            let prop_def = &self.schema.properties[*prop_idx];
 
             if value.data_type() != prop_def.data_type {
                 let converted = value.try_cast_to(&prop_def.data_type)?;
@@ -680,9 +688,11 @@ impl EdgeTableCore {
             .add_property(name.clone(), data_type.clone(), nullable);
 
         let prop_def = StoragePropertyDef::new(name.clone(), data_type.clone());
+        let new_idx = self.schema.properties.len();
         self.schema
             .properties
             .push(prop_def);
+        self.property_index_cache.insert(name.clone(), new_idx);
         // Increment schema version when property is added
         self.schema.increment_version();
 
@@ -723,6 +733,13 @@ impl EdgeTableCore {
         self.properties.remove_property(name)?;
         // Only modify schema if properties removal succeeded
         self.schema.properties.remove(index);
+        // Update cache: remove deleted property and adjust indices
+        self.property_index_cache.remove(name);
+        for (prop_name, idx) in &mut self.property_index_cache {
+            if *idx > index {
+                *idx -= 1;
+            }
+        }
         // Increment schema version when property is removed
         self.schema.increment_version();
 
@@ -767,6 +784,10 @@ impl EdgeTableCore {
         self.properties.rename_property(old_name, new_name)?;
         // Only modify schema if properties rename succeeded
         self.schema.properties[index].name = new_name.to_string();
+        // Update cache: rename key, keep index
+        if let Some(idx) = self.property_index_cache.remove(old_name) {
+            self.property_index_cache.insert(new_name.to_string(), idx);
+        }
         // Increment schema version when property is renamed
         self.schema.increment_version();
 
@@ -798,6 +819,12 @@ impl EdgeTableCore {
         if !self.is_open {
             return Err(StorageError::storage_not_open());
         }
+
+        // Validate property exists via cache
+        let _ = self
+            .property_index_cache
+            .get(prop_name)
+            .ok_or_else(|| StorageError::column_not_found(prop_name.to_string()))?;
 
         let dst_key = Self::edge_endpoint_key(dst, rank);
         if let Some(nbr) = self.merged_get_edge(&self.out_csr, &self.out_segments, src, dst_key, ts)
@@ -876,12 +903,22 @@ impl EdgeTableCore {
     }
 
     pub fn set_schema(&mut self, schema: EdgeSchema) {
+        // Rebuild property index cache
+        self.property_index_cache.clear();
+        for (idx, prop) in schema.properties.iter().enumerate() {
+            self.property_index_cache.insert(prop.name.clone(), idx);
+        }
         self.schema = schema;
     }
 
     /// Set schema with explicit version number (used for undo operations)
     pub fn set_schema_with_version(&mut self, mut schema: EdgeSchema, new_version: u64) {
         schema.schema_version = new_version;
+        // Rebuild property index cache
+        self.property_index_cache.clear();
+        for (idx, prop) in schema.properties.iter().enumerate() {
+            self.property_index_cache.insert(prop.name.clone(), idx);
+        }
         self.schema = schema;
     }
 
@@ -910,6 +947,10 @@ impl EdgeTableCore {
             .sum::<usize>();
         total += self.mvcc.tombstones.len() * std::mem::size_of::<(EdgeId, Timestamp)>();
         total += self.properties.used_memory_size();
+
+        // Account for property_index_cache
+        total += self.property_index_cache.len()
+            * (std::mem::size_of::<String>() + std::mem::size_of::<usize>());
 
         total
     }

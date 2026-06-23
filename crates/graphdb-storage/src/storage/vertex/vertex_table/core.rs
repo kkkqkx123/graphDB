@@ -688,14 +688,26 @@ impl VertexTable {
     ///
     /// Returns the number of version entries cleaned up.
     pub fn gc(&mut self, min_ts: Timestamp) -> StorageResult<usize> {
-        // In VertexTable, we don't have explicit versioned data to clean up yet.
-        // The timestamp structure tracks valid/invalid periods for each vertex.
-        // GC would mark timestamps older than min_ts as eligible for reuse,
-        // but this is handled at a higher level during compaction.
+        // Collect all vertices deleted before min_ts
+        let deleted_ids: Vec<u32> = self.timestamps.iter_deleted(min_ts).collect();
 
-        // For now, return 0 as a placeholder
-        // Future optimization: track and clean up unused timestamp ranges
-        Ok(0)
+        if deleted_ids.is_empty() {
+            return Ok(0);
+        }
+
+        let count = deleted_ids.len();
+
+        // Remove from id_indexer
+        for id in &deleted_ids {
+            if let Some(key) = self.id_indexer.get_key(*id) {
+                self.id_indexer.remove(&key);
+            }
+        }
+
+        // Compact to reclaim space
+        self.compact_coordinated()?;
+
+        Ok(count)
     }
 }
 

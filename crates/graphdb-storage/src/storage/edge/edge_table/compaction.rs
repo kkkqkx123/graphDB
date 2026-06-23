@@ -11,6 +11,23 @@ use crate::core::types::{Timestamp, CompactConfig};
 use crate::core::StorageResult;
 use crate::storage::edge::{MutableCsrTrait, CsrBase};
 
+/// Compaction mode for the unified compact_and_freeze pipeline.
+///
+/// Controls which steps are included in the compaction pipeline after the
+/// common prefix (compact_csr → freeze → compact_properties → stats).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompactionMode {
+    /// Standard: compact + freeze + merge + compact_properties + stats.
+    /// Merge uses in-place strategy (no physical deletion, no GC).
+    Standard,
+    /// Auto GC: Standard + mvcc.gc_tombstones(min_active_snapshot_ts).
+    /// Tombstone metadata (not edges) is cleaned up after property compaction.
+    AutoGC,
+    /// Physical deletion: Standard + merge with deletion filter + gc_tombstones.
+    /// Tombstoned edges are physically removed during segment merge.
+    PhysicalDeletion,
+}
+
 impl EdgeTableCore {
     /// Compact mutable CSR only - physical removal of deleted edges from delta.
     ///
@@ -188,22 +205,30 @@ impl EdgeTableCore {
 
     /// Compact and freeze with physical deletion at specified timestamp.
     ///
-    /// Combines all compaction steps including physical deletion of tombstoned edges:
-    /// 1. Compact mutable CSR (remove deleted edges from in-memory delta)
-    /// 2. Freeze delta to immutable segments
-    /// 3. Merge segments with deletion filter (physically remove edges deleted before min_active_snapshot_ts)
-    /// 4. Compact property table
-    /// 5. Record statistics
-    ///
-    /// # Deletion Lifecycle
-    ///
-    /// This method implements complete physical deletion across three layers:
-    /// - Layer 1 (Mutable CSR): compact_csr_only() removes tombstoned entries immediately
-    /// - Layer 2 (Frozen Segments): merge_with_deletion_filter() removes edges deleted before min_active_snapshot_ts
-    /// - Layer 3 (Property Table): compact_properties() reclaims unused property offsets
-    ///
-    /// Returns number of edges removed from mutable CSR during compaction.
+    /// Convenience wrapper around [`compact_and_freeze`] with `CompactionMode::PhysicalDeletion`.
+    #[deprecated(since = "0.3.0", note = "use compact_and_freeze with CompactionMode::PhysicalDeletion instead")]
     pub fn compact_and_freeze_with_physical_deletion(&mut self, ts: Timestamp, config: &CompactConfig) -> usize {
+        self.compact_and_freeze(ts, config, CompactionMode::PhysicalDeletion)
+    }
+
+    /// Unified compaction pipeline with configurable mode.
+    ///
+    /// Provides a single entry point for all compaction variants:
+    ///
+    /// | Mode | Description | Steps |
+    /// |------|-------------|-------|
+    /// | `Standard` | Basic inline merge | compact_csr → freeze → merge (in-place) → compact_properties → stats |
+    /// | `AutoGC` | + tombstone GC | Standard + gc_tombstones |
+    /// | `PhysicalDeletion` | + physical edge removal | compact_csr → freeze → merge (with deletion filter) → compact_properties → gc_tombstones → stats |
+    ///
+    /// Returns number of edges removed from mutable CSR during Layer 1 compaction.
+    ///
+    /// # Deletion Lifecycle (PhysicalDeletion mode)
+    ///
+    /// - **Layer 1** (Mutable CSR): compact_csr_only() removes tombstoned entries from delta
+    /// - **Layer 2** (Frozen Segments): merge with deletion filter removes edges deleted before min_active_snapshot_ts
+    /// - **Layer 3** (Property Table): compact_properties() reclaims unused property offsets
+    pub fn compact_and_freeze(&mut self, ts: Timestamp, config: &CompactConfig, mode: CompactionMode) -> usize {
         let edge_count = self.edge_count() as usize;
         let reserve_ratio = config.compute_reserve_ratio(edge_count, 0);
 
@@ -213,26 +238,40 @@ impl EdgeTableCore {
         // Freeze mutable CSR to immutable segments
         self.freeze_csr_only(ts);
 
+        // Layer 2: Merge segments
         if config.segment_merge_enabled {
             let stats = self.mvcc.tombstone_stats();
             let merge_threshold = config.compute_merge_size_threshold(stats.memory_bytes);
 
-            // Layer 2: Merge segments with physical deletion of tombstoned edges
-            let min_active_snapshot_ts = self.mvcc.min_active_snapshot_ts;
-            self.merge_segments_with_config_and_deletion_filter(
-                config.segment_merge_threshold,
-                merge_threshold,
-                if min_active_snapshot_ts < u32::MAX {
-                    Some(min_active_snapshot_ts)
-                } else {
-                    None
-                },
-            );
+            match mode {
+                CompactionMode::PhysicalDeletion => {
+                    let min_active_snapshot_ts = self.mvcc.min_active_snapshot_ts;
+                    self.merge_segments_with_config_and_deletion_filter(
+                        config.segment_merge_threshold,
+                        merge_threshold,
+                        if min_active_snapshot_ts < u32::MAX {
+                            Some(min_active_snapshot_ts)
+                        } else {
+                            None
+                        },
+                    );
+                }
+                _ => {
+                    self.merge_segments_with_config(config.segment_merge_threshold, merge_threshold);
+                }
+            }
         }
 
         // Layer 3: Compact property table to reclaim unused offsets
         self.compact_properties(ts);
 
+        // GC tombstones (AutoGC and PhysicalDeletion modes)
+        if mode == CompactionMode::AutoGC || mode == CompactionMode::PhysicalDeletion {
+            let min_ts = self.mvcc.get_min_active_snapshot_ts();
+            self.mvcc.gc_tombstones(min_ts);
+        }
+
+        // Record statistics
         if let Some(stats) = &self.stats_manager {
             let tom_stats = self.mvcc.tombstone_stats();
             stats.record_tombstone_stats(
@@ -240,7 +279,7 @@ impl EdgeTableCore {
                 tom_stats.memory_bytes as u64,
                 tom_stats.oldest_delete_ts,
                 tom_stats.newest_delete_ts,
-                1,
+                self.mvcc.active_snapshots.len() as u64,
             );
         }
 

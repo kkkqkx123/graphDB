@@ -85,17 +85,31 @@ impl PropertyRecord {
 ///
 /// Tracks fragmentation metrics to help decide when to perform compaction
 /// and measure the effectiveness of compaction operations.
+///
+/// Fragmentation is measured in two ways:
+/// 1. **Record-level**: tombstone_count / total_records
+///    - Quick check for excessive deleted records
+///    - Not size-aware (100 large records vs 100 tiny records look the same)
+///
+/// 2. **Byte-level**: reclaimable_bytes
+///    - Actual storage waste from deleted records
+///    - More accurate indicator of compaction benefit
+///
+/// Compaction decisions should primarily consider reclaimable_bytes
+/// rather than just fragmentation ratio.
 #[derive(Debug, Clone, Default)]
 pub struct PropertyCompactionStats {
     /// Number of deleted/tombstoned records
     pub tombstone_count: usize,
     /// Total number of records including tombstones
     pub total_records: usize,
-    /// Size of the data buffer in bytes
-    pub buffer_size: usize,
-    /// Size of the free list
+    /// Number of live (non-deleted) records
+    /// Equal to total_records - tombstone_count
+    pub live_records: usize,
+    /// Size of the free list (reusable slots)
     pub free_list_size: usize,
     /// Estimated bytes that could be recovered through compaction
+    /// Includes both deleted record data and PropertyRecord metadata
     pub reclaimable_bytes: usize,
 }
 
@@ -114,17 +128,36 @@ impl PropertyCompactionStats {
         self.fragmentation_ratio() * 100.0
     }
 
-    /// Check if compaction should be triggered (fragmentation > threshold)
-    pub fn should_compact(&self, threshold: f64) -> bool {
-        self.fragmentation_ratio() > threshold
-    }
-
-    /// Estimate space efficiency (live data / total buffer size)
-    pub fn space_efficiency(&self) -> f64 {
-        if self.buffer_size == 0 {
-            1.0
+    /// Check if compaction should be triggered
+    ///
+    /// Compaction is beneficial when:
+    /// - Record-level fragmentation exceeds threshold, OR
+    /// - Reclaimable bytes exceed a significant portion of live data
+    ///
+    /// This combines both metrics for a more robust decision.
+    pub fn should_compact(&self, fragmentation_threshold: f64) -> bool {
+        // Trigger if record fragmentation ratio is high
+        let record_fragmentation = if self.total_records == 0 {
+            0.0
         } else {
-            1.0 - (self.reclaimable_bytes as f64 / self.buffer_size as f64)
+            self.tombstone_count as f64 / self.total_records as f64
+        };
+
+        if record_fragmentation > fragmentation_threshold {
+            return true;
         }
+
+        // Also trigger if reclaimable bytes are significant
+        // (e.g., > 20% of what we could save if we compacted)
+        // This handles the case where many small records are deleted
+        if self.live_records > 0 && self.reclaimable_bytes > 0 {
+            // If reclaimable bytes exceed 50% of total table size, compact
+            let total_size = self.live_records * std::mem::size_of::<PropertyRecord>() + self.reclaimable_bytes;
+            if total_size > 0 && (self.reclaimable_bytes as f64 / total_size as f64) > 0.5 {
+                return true;
+            }
+        }
+
+        false
     }
 }

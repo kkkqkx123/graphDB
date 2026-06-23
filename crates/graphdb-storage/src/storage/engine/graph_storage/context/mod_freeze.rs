@@ -40,13 +40,13 @@ impl GraphStorageContext {
                         let decision = manager.get_freeze_decision_with_stats(&input);
                         freeze_reasons.insert(decision.freeze_reason);
 
-                        let frozen = table.compact_and_freeze_with_config(ts, &config);
+                        let frozen = table.compact_and_freeze(ts, &config, crate::storage::edge::edge_table::CompactionMode::Standard);
                         total_frozen += frozen as u64;
                         any_frozen = true;
                     }
                 } else {
                     if delta_edges >= self.persistent.config.freeze.delta_edge_threshold {
-                        let frozen = table.compact_and_freeze_with_config(ts, &config);
+                        let frozen = table.compact_and_freeze(ts, &config, crate::storage::edge::edge_table::CompactionMode::Standard);
                         total_frozen += frozen as u64;
                         any_frozen = true;
                     }

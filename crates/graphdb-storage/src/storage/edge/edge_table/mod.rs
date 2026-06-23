@@ -30,6 +30,7 @@ pub use segment::{CsrSegment, DeletionInfo, SegmentVersion, SEPARATE_EDGE_ID_STO
 pub use mvcc::MVCCManager;
 pub use snapshot::{ExportedEdgeSnapshot, SnapshotBuilder};
 pub use stats::{TombstoneStats, DeletionStats, MergeStats, MergeMetrics, MergeMetricsResult};
+pub use compaction::CompactionMode;
 
 // Re-export from parent
 pub use super::{
@@ -41,117 +42,7 @@ use crate::core::{StorageResult, StorageError};
 use std::time::Instant;
 use std::sync::Arc;
 use crate::storage::persistence::write_header_to;
-
 impl EdgeTable {
-    /// Compact and freeze in sequence with adaptive configuration.
-    pub fn compact_and_freeze_with_config(&mut self, ts: Timestamp, config: &CompactConfig) -> usize {
-        let edge_count = self.edge_count() as usize;
-        let reserve_ratio = config.compute_reserve_ratio(edge_count, 0);
-
-        let removed = self.compact_csr_only(ts, reserve_ratio);
-        self.freeze_csr_only(ts);
-
-        if config.segment_merge_enabled {
-            let stats = self.mvcc.tombstone_stats();
-            let merge_threshold = config.compute_merge_size_threshold(stats.memory_bytes);
-            self.merge_segments_with_config(config.segment_merge_threshold, merge_threshold);
-        }
-
-        self.compact_properties(ts);
-
-        if let Some(stats) = &self.stats_manager {
-            let tom_stats = self.mvcc.tombstone_stats();
-            stats.record_tombstone_stats(
-                tom_stats.count as u64,
-                tom_stats.memory_bytes as u64,
-                tom_stats.oldest_delete_ts,
-                tom_stats.newest_delete_ts,
-                self.mvcc.active_snapshots.len() as u64,
-            );
-        }
-
-        removed
-    }
-
-    /// Compact, freeze, and perform automatic tombstone GC in sequence.
-    pub fn compact_and_freeze_with_auto_gc(
-        &mut self,
-        ts: Timestamp,
-        config: &CompactConfig,
-    ) -> usize {
-        let edge_count = self.edge_count() as usize;
-        let reserve_ratio = config.compute_reserve_ratio(edge_count, 0);
-
-        let removed = self.compact_csr_only(ts, reserve_ratio);
-        self.freeze_csr_only(ts);
-
-        if config.segment_merge_enabled {
-            let stats = self.mvcc.tombstone_stats();
-            let merge_threshold = config.compute_merge_size_threshold(stats.memory_bytes);
-            self.merge_segments_with_config(config.segment_merge_threshold, merge_threshold);
-        }
-
-        self.compact_properties(ts);
-
-        let min_active_snapshot_ts = self.mvcc.get_min_active_snapshot_ts();
-        self.mvcc.gc_tombstones(min_active_snapshot_ts);
-
-        if let Some(stats) = &self.stats_manager {
-            let tom_stats = self.mvcc.tombstone_stats();
-            stats.record_tombstone_stats(
-                tom_stats.count as u64,
-                tom_stats.memory_bytes as u64,
-                tom_stats.oldest_delete_ts,
-                tom_stats.newest_delete_ts,
-                self.mvcc.active_snapshots.len() as u64,
-            );
-        }
-
-        removed
-    }
-
-    /// Compact, freeze, and perform tombstone GC in sequence (deprecated).
-    #[deprecated(since = "0.2.0", note = "use compact_and_freeze_with_auto_gc instead")]
-    pub fn compact_and_freeze_with_gc(
-        &mut self,
-        ts: Timestamp,
-        config: &CompactConfig,
-        min_active_snapshot_ts: Timestamp,
-    ) -> usize {
-        debug_assert_eq!(
-            min_active_snapshot_ts, self.mvcc.get_min_active_snapshot_ts(),
-            "Provided min_active_snapshot_ts doesn't match actual. Use compact_and_freeze_with_auto_gc instead."
-        );
-
-        let edge_count = self.edge_count() as usize;
-        let reserve_ratio = config.compute_reserve_ratio(edge_count, 0);
-
-        let removed = self.compact_csr_only(ts, reserve_ratio);
-        self.freeze_csr_only(ts);
-
-        if config.segment_merge_enabled {
-            let stats = self.mvcc.tombstone_stats();
-            let merge_threshold = config.compute_merge_size_threshold(stats.memory_bytes);
-            self.merge_segments_with_config(config.segment_merge_threshold, merge_threshold);
-        }
-
-        self.compact_properties(ts);
-        self.mvcc.gc_tombstones(min_active_snapshot_ts);
-
-        if let Some(stats) = &self.stats_manager {
-            let tom_stats = self.mvcc.tombstone_stats();
-            stats.record_tombstone_stats(
-                tom_stats.count as u64,
-                tom_stats.memory_bytes as u64,
-                tom_stats.oldest_delete_ts,
-                tom_stats.newest_delete_ts,
-                self.mvcc.active_snapshots.len() as u64,
-            );
-        }
-
-        removed
-    }
-
     /// Export a read-only snapshot of this edge table at the given timestamp.
     pub fn export_snapshot(&self, ts: Timestamp) -> StorageResult<ExportedEdgeSnapshot> {
         let out_edges = self.collect_edges_for_snapshot_mvcc(&self.out_csr, &self.out_segments, ts)?;
@@ -483,6 +374,11 @@ impl EdgeTable {
         self.dst_label = dst_label;
         self.label_name = label_name;
         self.is_open = is_open;
+        // Rebuild property index cache from loaded schema
+        self.property_index_cache.clear();
+        for (idx, prop) in schema.properties.iter().enumerate() {
+            self.property_index_cache.insert(prop.name.clone(), idx);
+        }
         self.schema = schema;
         self.next_edge_id = next_edge_id;
         self.mvcc.tombstones = tombstones;

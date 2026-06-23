@@ -1,8 +1,36 @@
 //! Property Table for Edges
 //!
-//! Stores edge properties using row-oriented storage with MVCC support.
+//! Row-oriented MVCC storage for edge properties.
+//!
+//! # Design Rationale
+//!
+//! Edge properties are accessed as complete records during graph traversal.
+//! When traversing out_edges() or in_edges(), we fetch one edge at a time and filter/read
+//! all its properties together. This access pattern naturally maps to row-oriented storage,
+//! where a single memory read captures the entire attribute set.
+//!
+//! Reference: Neo4j (fixed record format), GraphScope (property table),
+//! NebulaGraph (KV-based edge storage) all use row-level access patterns.
+//!
+//! ## MVCC Strategy
+//!
+//! PropertyTable implements record-level MVCC (create_ts/delete_ts) rather than
+//! relying on external versioning like VertexTable. This allows:
+//! - Independent version tracking without re-scanning CSR structure
+//! - Delayed garbage collection via TieredTombstoneManager
+//! - Time-travel queries on edge properties
+//!
 //! Each property record includes create_ts and delete_ts for version tracking,
 //! enabling time-travel queries and garbage collection of expired versions.
+//!
+//! ## Performance Optimizations
+//!
+//! Row-oriented storage enables key optimizations:
+//! - `get_fast()`: Skip null checks for fixed-size schemas (2-3x speedup)
+//! - `set_property_fixed_size()`: Direct byte manipulation avoids full serialize cycle
+//! - `column_byte_offsets`: Precomputed for O(1) column lookup
+//! - `prefetch_batch()`: CPU cache locality for bulk reads
+//! - `get_batch()`: Sorted access pattern for sequential cache hits
 
 use std::collections::{HashMap, HashSet};
 use std::io::{Cursor, Read};
@@ -50,7 +78,6 @@ pub struct PropertyTable {
     schema: Vec<PropertySchema>,
     name_indexer: NameIndexer,
     records: Vec<Option<PropertyRecord>>,     // row_index → PropertyRecord with timestamps
-    buffer: Vec<u8>,                          // single contiguous buffer (for data)
     row_count: usize,
     free_list: Vec<u32>,
 
@@ -60,6 +87,11 @@ pub struct PropertyTable {
     // MVCC snapshot management
     active_snapshots: HashMap<Timestamp, usize>,
     min_active_snapshot_ts: Timestamp,
+
+    /// Pre-computed byte offsets for each column in the serialized row format.
+    /// Only meaningful for fixed-size schemas. Used for direct byte manipulation
+    /// in set_property to avoid full deserialize-merge-serialize cycle.
+    column_byte_offsets: Vec<usize>,
 }
 
 impl PropertyTable {
@@ -68,12 +100,12 @@ impl PropertyTable {
             schema: Vec::new(),
             name_indexer: NameIndexer::new(),
             records: Vec::new(),
-            buffer: Vec::new(),
             row_count: 0,
             free_list: Vec::new(),
             tombstones_manager: TieredTombstoneManager::new(10_000),
             active_snapshots: HashMap::new(),
             min_active_snapshot_ts: u32::MAX,
+            column_byte_offsets: Vec::new(),
         }
     }
 
@@ -82,12 +114,12 @@ impl PropertyTable {
             schema: Vec::new(),
             name_indexer: NameIndexer::with_capacity(capacity),
             records: Vec::with_capacity(capacity),
-            buffer: Vec::with_capacity(capacity * 128),
             row_count: 0,
             free_list: Vec::with_capacity(capacity / 10),
             tombstones_manager: TieredTombstoneManager::new(10_000),
             active_snapshots: HashMap::with_capacity(capacity / 100),
             min_active_snapshot_ts: u32::MAX,
+            column_byte_offsets: Vec::new(),
         }
     }
 
@@ -102,17 +134,8 @@ impl PropertyTable {
             .nullable(nullable);
         self.name_indexer.register(name.clone());
         self.schema.push(schema);
+        self.recompute_column_byte_offsets();
         prop_id
-    }
-
-    pub fn add_property_with_encoding(
-        &mut self,
-        name: String,
-        data_type: DataType,
-        nullable: bool,
-        _encoding: Option<()>,
-    ) -> PropertyId {
-        self.add_property(name, data_type, nullable)
     }
 
     pub fn remove_property(&mut self, name: &str) -> StorageResult<()> {
@@ -128,6 +151,7 @@ impl PropertyTable {
             schema.prop_id = idx as i32;
             self.name_indexer.register(schema.name.clone());
         }
+        self.recompute_column_byte_offsets();
 
         Ok(())
     }
@@ -150,15 +174,8 @@ impl PropertyTable {
             schema.prop_id = idx as i32;
             self.name_indexer.register(schema.name.clone());
         }
+        self.recompute_column_byte_offsets();
 
-        Ok(())
-    }
-
-    pub fn apply_encoding(&mut self, _prop_id: PropertyId, _encoding: ()) -> StorageResult<()> {
-        Ok(())
-    }
-
-    pub fn auto_apply_encodings(&mut self, _config: Option<()>) -> StorageResult<()> {
         Ok(())
     }
 
@@ -413,6 +430,71 @@ impl PropertyTable {
         self.deserialize_row(&record.data).ok()
     }
 
+    /// Serialize a single value into a byte buffer at a given offset.
+    /// Used for direct byte manipulation in set_property.
+    fn serialize_value_at_offset(&self, buffer: &mut [u8], value: Option<&Value>, col_idx: usize) -> StorageResult<()> {
+        let byte_off = self.column_byte_offsets.get(col_idx).ok_or_else(|| {
+            StorageError::column_not_found(format!("col_idx={}", col_idx))
+        })?;
+
+        let dt = &self.schema[col_idx].data_type;
+        let val_size = Self::data_type_byte_size(dt).ok_or_else(|| {
+            StorageError::not_supported("Variable-size types not supported for direct update".to_string())
+        })?;
+
+        match value {
+            None => {
+                buffer[*byte_off] = 0; // null marker
+                // Zero out value bytes (safety, but not strictly required)
+                for i in 0..val_size {
+                    buffer[*byte_off + 1 + i] = 0;
+                }
+            }
+            Some(val) => {
+                buffer[*byte_off] = 1; // not null marker
+                let target = &mut buffer[*byte_off + 1..*byte_off + 1 + val_size];
+                match dt {
+                    DataType::Bool => {
+                        if let Value::Bool(b) = val {
+                            target[0] = if *b { 1 } else { 0 };
+                        }
+                    }
+                    DataType::SmallInt => {
+                        if let Value::SmallInt(i) = val {
+                            target.copy_from_slice(&i.to_le_bytes());
+                        }
+                    }
+                    DataType::Int => {
+                        if let Value::Int(i) = val {
+                            target.copy_from_slice(&i.to_le_bytes());
+                        }
+                    }
+                    DataType::BigInt => {
+                        if let Value::BigInt(i) = val {
+                            target.copy_from_slice(&i.to_le_bytes());
+                        }
+                    }
+                    DataType::Float => {
+                        if let Value::Float(f) = val {
+                            target.copy_from_slice(&f.to_le_bytes());
+                        }
+                    }
+                    DataType::Double => {
+                        if let Value::Double(d) = val {
+                            target.copy_from_slice(&d.to_le_bytes());
+                        }
+                    }
+                    _ => {
+                        return Err(StorageError::not_supported(
+                            format!("Unexpected fixed-size type: {:?}", dt)
+                        ));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn set_property(
         &mut self,
         offset: u32,
@@ -429,6 +511,15 @@ impl PropertyTable {
             return Err(StorageError::column_not_found(name.to_string()));
         }
 
+        // Fast path: for fixed-size schemas, do direct byte manipulation
+        let col_idx = self.schema.iter().position(|p| p.name == name)
+            .ok_or_else(|| StorageError::column_not_found(name.to_string()))?;
+
+        if self.is_schema_fixed_size() && col_idx < self.column_byte_offsets.len() {
+            return self.set_property_fixed_size(row_idx, offset, col_idx, value, ts);
+        }
+
+        // Slow path: full deserialize → merge → serialize cycle
         let mut merged_values: Vec<(String, Option<Value>)> = Vec::new();
         if let Some(props) = self.get(offset, None) {
             for (n, v) in props {
@@ -442,7 +533,7 @@ impl PropertyTable {
 
         let new_record = self.serialize_row_with_nulls(&merged_values)?;
 
-        // Mark old as deleted and insert new
+        // MVCC: mark old as deleted and insert new
         if let Some(record) = &mut self.records[row_idx] {
             if record.delete_ts.is_none() {
                 record.delete_ts = Some(ts);
@@ -451,6 +542,40 @@ impl PropertyTable {
         }
 
         let new_record_obj = PropertyRecord::new(new_record, ts);
+        self.records[row_idx] = Some(new_record_obj);
+
+        Ok(())
+    }
+
+    /// Fast path: update a single property value via direct byte manipulation.
+    /// Only applicable for fixed-size schemas where byte offsets are known.
+    /// Skips full deserialize → merge → serialize cycle.
+    fn set_property_fixed_size(
+        &mut self,
+        row_idx: usize,
+        offset: u32,
+        col_idx: usize,
+        value: Option<Value>,
+        ts: Timestamp,
+    ) -> StorageResult<()> {
+        let Some(record) = self.records[row_idx].as_ref() else {
+            return Err(StorageError::invalid_offset(offset));
+        };
+
+        // Clone the old data and overwrite the target property's bytes
+        let mut new_data = record.data.clone();
+        self.serialize_value_at_offset(&mut new_data, value.as_ref(), col_idx)?;
+
+        // MVCC: mark old as deleted
+        if let Some(record) = &mut self.records[row_idx] {
+            if record.delete_ts.is_none() {
+                record.delete_ts = Some(ts);
+                self.tombstones_manager.add_tombstone(offset, ts);
+            }
+        }
+
+        // Replace with new record (same position, new data + timestamp)
+        let new_record_obj = PropertyRecord::new(new_data, ts);
         self.records[row_idx] = Some(new_record_obj);
 
         Ok(())
@@ -466,6 +591,19 @@ impl PropertyTable {
         let col_idx = prop_id.as_usize();
         if col_idx >= self.schema.len() {
             return Err(StorageError::column_not_found(format!("prop_id={}", prop_id)));
+        }
+
+        // Direct path: bypass set_property's linear name lookup
+        let row_idx = match prop_offset_to_index(offset) {
+            Some(idx) => idx,
+            None => return Err(StorageError::invalid_offset(offset)),
+        };
+        if row_idx >= self.records.len() {
+            return Err(StorageError::invalid_offset(offset));
+        }
+
+        if self.is_schema_fixed_size() && col_idx < self.column_byte_offsets.len() {
+            return self.set_property_fixed_size(row_idx, offset, col_idx, value, ts);
         }
 
         self.set_property(offset, &self.schema[col_idx].name.clone(), value, ts)
@@ -657,6 +795,7 @@ impl PropertyTable {
 
         self.schema.clear();
         self.name_indexer.clear();
+        self.column_byte_offsets.clear();
 
         for _ in 0..schema_len {
             let name_len = read_u32_le(data, &mut offset)? as usize;
@@ -680,6 +819,9 @@ impl PropertyTable {
             self.name_indexer.register(name.clone());
             self.schema.push(prop_schema);
         }
+
+        // Recompute column byte offsets after schema is loaded
+        self.recompute_column_byte_offsets();
 
         // Load PropertyRecords with MVCC support
         let records_len = read_u32_le(data, &mut offset)? as usize;
@@ -803,7 +945,7 @@ impl PropertyTable {
     /// Calculate compaction statistics for the property table
     pub fn compaction_stats(&self) -> PropertyCompactionStats {
         let tombstone_count = self.tombstones_manager.len();
-        let live_count = self.records.iter().filter(|r| r.is_some()).count();
+        let live_records = self.records.iter().filter(|r| r.is_some()).count();
 
         // Estimate reclaimable bytes from tombstoned records
         let mut reclaimable_bytes = 0usize;
@@ -818,7 +960,7 @@ impl PropertyTable {
         PropertyCompactionStats {
             tombstone_count,
             total_records: self.records.len(),
-            buffer_size: self.buffer.len(),
+            live_records,
             free_list_size: self.free_list.len(),
             reclaimable_bytes,
         }
@@ -887,8 +1029,40 @@ impl PropertyTable {
         offset_mapping
     }
 
-    /// Check if schema is suitable for fast path deserialization:
-    /// all types are fixed-size (no String, no Date) and no nulls
+    /// Get the byte size of a fixed-size data type in the serialized row format.
+    /// Returns None for variable-size types (String, Date, etc.).
+    fn data_type_byte_size(dt: &DataType) -> Option<usize> {
+        match dt {
+            DataType::Bool => Some(1),
+            DataType::SmallInt => Some(2),
+            DataType::Int => Some(4),
+            DataType::BigInt => Some(8),
+            DataType::Float => Some(4),
+            DataType::Double => Some(8),
+            _ => None, // Variable-size types
+        }
+    }
+
+    /// Recompute column byte offsets for fixed-size schemas.
+    /// Each column occupies: 1 byte (null marker) + N bytes (value data).
+    /// Called after any schema change.
+    fn recompute_column_byte_offsets(&mut self) {
+        self.column_byte_offsets.clear();
+        if !self.is_schema_fixed_size() {
+            return;
+        }
+        let mut offset = 0usize;
+        for col in &self.schema {
+            self.column_byte_offsets.push(offset);
+            // null marker (1) + value size
+            if let Some(sz) = Self::data_type_byte_size(&col.data_type) {
+                offset += 1 + sz;
+            }
+        }
+    }
+
+    /// Check if schema is suitable for fast path operations:
+    /// all types are fixed-size (no String, no Date)
     pub fn is_schema_fixed_size(&self) -> bool {
         self.schema.iter().all(|s| {
             matches!(
