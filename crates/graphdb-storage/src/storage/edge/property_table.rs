@@ -546,8 +546,8 @@ impl PropertyTable {
         let checksum_pos = result.len();
         result.extend_from_slice(&[0u8; 4]);
 
-        // Version 2: Include MVCC support
-        result.push(2);  // version
+        // Version 1: Current development format with MVCC support
+        result.push(1);  // version
 
         result.extend_from_slice(&(self.schema.len() as u32).to_le_bytes());
         for prop in &self.schema {
@@ -591,10 +591,10 @@ impl PropertyTable {
             // This is for persistence; reconstruction happens during load
         }
 
-        // Store free list
+        // Store free list with Varint encoding
         result.extend_from_slice(&(self.free_list.len() as u32).to_le_bytes());
-        for off in &self.free_list {
-            result.extend_from_slice(&off.to_le_bytes());
+        for &off in &self.free_list {
+            encode_varint(off, &mut result);
         }
 
         let checksum = crc32fast::hash(&result[checksum_pos + 4..]);
@@ -638,7 +638,7 @@ impl PropertyTable {
         let data = payload;
         let mut offset = 0usize;
 
-        // Read version
+        // Read version (currently v1)
         let version = if offset < data.len() {
             let v = data[offset];
             offset += 1;
@@ -646,6 +646,12 @@ impl PropertyTable {
         } else {
             1  // Default to v1 if not specified
         };
+
+        if version != 1 {
+            return Err(StorageError::deserialize_error(
+                format!("Unsupported PropertyTable version: expected 1, got {}", version)
+            ));
+        }
 
         let schema_len = read_u32_le(data, &mut offset)? as usize;
 
@@ -675,86 +681,76 @@ impl PropertyTable {
             self.schema.push(prop_schema);
         }
 
-        if version >= 2 {
-            // Load PropertyRecords with MVCC support (v2+)
-            let records_len = read_u32_le(data, &mut offset)? as usize;
-            self.records.clear();
-            self.row_count = 0;
+        // Load PropertyRecords with MVCC support
+        let records_len = read_u32_le(data, &mut offset)? as usize;
+        self.records.clear();
+        self.row_count = 0;
 
-            for _ in 0..records_len {
-                if offset >= data.len() {
+        for _ in 0..records_len {
+            if offset >= data.len() {
+                return Err(StorageError::deserialize_error("unexpected end of data"));
+            }
+            let marker = data[offset];
+            offset += 1;
+
+            if marker == 1 {
+                let create_ts = read_u32_le(data, &mut offset)?;
+                let has_delete_ts = data[offset];
+                offset += 1;
+                let delete_ts = if has_delete_ts == 1 {
+                    Some(read_u32_le(data, &mut offset)?)
+                } else {
+                    None
+                };
+                let data_len = read_u32_le(data, &mut offset)? as usize;
+                if offset + data_len > data.len() {
                     return Err(StorageError::deserialize_error("unexpected end of data"));
                 }
-                let marker = data[offset];
-                offset += 1;
+                let record_data = data[offset..offset + data_len].to_vec();
+                offset += data_len;
 
-                if marker == 1 {
-                    let create_ts = read_u32_le(data, &mut offset)?;
-                    let has_delete_ts = data[offset];
-                    offset += 1;
-                    let delete_ts = if has_delete_ts == 1 {
-                        Some(read_u32_le(data, &mut offset)?)
-                    } else {
-                        None
-                    };
-                    let data_len = read_u32_le(data, &mut offset)? as usize;
-                    if offset + data_len > data.len() {
-                        return Err(StorageError::deserialize_error("unexpected end of data"));
-                    }
-                    let record_data = data[offset..offset + data_len].to_vec();
-                    offset += data_len;
-
-                    let record = PropertyRecord {
-                        data: record_data,
-                        create_ts,
-                        delete_ts,
-                    };
-                    self.records.push(Some(record));
-                    self.row_count += 1;
-                } else {
-                    self.records.push(None);
-                }
+                let record = PropertyRecord {
+                    data: record_data,
+                    create_ts,
+                    delete_ts,
+                };
+                self.records.push(Some(record));
+                self.row_count += 1;
+            } else {
+                self.records.push(None);
             }
-
-            // Load tiered tombstones for GC tracking
-            let tombstones_len = read_u32_le(data, &mut offset)? as usize;
-            self.tombstones_manager = TieredTombstoneManager::new(10_000);
-            for _ in 0..tombstones_len {
-                // Placeholder: in production, would deserialize hot and cold layers separately
-                // For now, all loaded tombstones go into the manager and are reconstructed
-                if offset + 8 <= data.len() {
-                    // Skip the persisted tombstones if present (for future use)
-                    offset += 8;
-                }
-            }
-
-            // Rebuild tiered tombstone manager from record timestamps
-            for (idx, record_opt) in self.records.iter().enumerate() {
-                if let Some(record) = record_opt {
-                    if let Some(delete_ts) = record.delete_ts {
-                        let prop_offset = prop_index_to_offset(idx);
-                        self.tombstones_manager.add_tombstone(prop_offset, delete_ts);
-                    }
-                }
-            }
-        } else {
-            // Backward compatibility: migrate v1 format to v2
-            // In v1, we had buffer + row_offsets instead of PropertyRecords
-            // This is a simplified migration that marks all records as create_ts=0
-            self.records.clear();
-            self.row_count = 0;
-
-            // Read old v1 format (skip this for now, or implement minimal v1 support)
-            return Err(StorageError::deserialize_error(
-                "PropertyTable v1 format is no longer supported. Please use v2 format or export/reimport data."
-            ));
         }
 
-        // Load free list
+        // Load tiered tombstones for GC tracking
+        let tombstones_len = read_u32_le(data, &mut offset)? as usize;
+        self.tombstones_manager = TieredTombstoneManager::new(10_000);
+        for _ in 0..tombstones_len {
+            // Placeholder: in production, would deserialize hot and cold layers separately
+            // For now, all loaded tombstones go into the manager and are reconstructed
+            if offset + 8 <= data.len() {
+                // Skip the persisted tombstones if present (for future use)
+                offset += 8;
+            }
+        }
+
+        // Rebuild tiered tombstone manager from record timestamps
+        for (idx, record_opt) in self.records.iter().enumerate() {
+            if let Some(record) = record_opt {
+                if let Some(delete_ts) = record.delete_ts {
+                    let prop_offset = prop_index_to_offset(idx);
+                    self.tombstones_manager.add_tombstone(prop_offset, delete_ts);
+                }
+            }
+        }
+
+        // Load free list with Varint decoding
         let free_list_len = read_u32_le(data, &mut offset)? as usize;
         self.free_list.clear();
         for _ in 0..free_list_len {
-            self.free_list.push(read_u32_le(data, &mut offset)?);
+            let mut cursor = Cursor::new(&data[offset..]);
+            let off = decode_varint(&mut cursor)?;
+            offset += cursor.position() as usize;
+            self.free_list.push(off);
         }
 
         Ok(())

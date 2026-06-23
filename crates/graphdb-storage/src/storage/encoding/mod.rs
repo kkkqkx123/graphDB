@@ -6,6 +6,7 @@
 //! - BitPacking for small-range integers
 //! - FSST for long string compression
 //! - ALP for floating-point compression
+//! - Varint for variable-length integer encoding
 //! - Tiered compression strategy selector
 
 pub mod alp;
@@ -14,6 +15,7 @@ pub mod dictionary;
 pub mod fsst;
 pub mod rle;
 pub mod selector;
+pub mod varint;
 
 use crate::core::{DataType, Value};
 
@@ -23,6 +25,7 @@ pub use dictionary::DictionaryColumn;
 pub use fsst::{FsstColumn, FsstEncoder};
 pub use rle::{RleBoolColumn, RleIntColumn};
 pub use selector::{ColumnStats, CompressionConfig, CompressionSelector};
+pub use varint::{decode_varint, decode_varint_reader, encode_varint, varint_len};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EncodingType {
