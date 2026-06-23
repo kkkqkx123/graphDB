@@ -60,22 +60,8 @@ impl EdgeTableCore {
 
         let total_frozen = out_result.frozen_count + in_result.frozen_count;
 
-        // Auto-trigger aggressive merge if too many segments
-        // For merged segments, rebuild full index as merge changes many segments
-        if self.out_segments.len() >= self.config.max_segments_per_direction {
-            let out_before = self.out_segments.len();
-            let _ = merge::merge_aggressive(&mut self.out_segments, 8 * 1024 * 1024);
-            if self.out_segments.len() != out_before {
-                self.rebuild_segment_indices(); // Rebuild after merge
-            }
-        }
-        if self.in_segments.len() >= self.config.max_segments_per_direction {
-            let in_before = self.in_segments.len();
-            let _ = merge::merge_aggressive(&mut self.in_segments, 8 * 1024 * 1024);
-            if self.in_segments.len() != in_before {
-                self.rebuild_segment_indices(); // Rebuild after merge
-            }
-        }
+        // Auto-trigger merge if segment count exceeds threshold (or emergency merge if max exceeded)
+        self.auto_merge_segments(ts);
 
         total_frozen
     }
@@ -250,5 +236,87 @@ impl EdgeTableCore {
                 self.in_segment_index[i].1 += 1;
             }
         }
+    }
+
+    /// Auto-merge segments based on threshold configuration.
+    ///
+    /// Intelligently merges segments when the count exceeds the configured threshold.
+    /// Strategy:
+    /// - If segment_merge_threshold is 0, auto-merge is disabled
+    /// - Otherwise, when segment count >= threshold:
+    ///   1. Merge oldest (count - keep_newest) segments into one
+    ///   2. Keep the newest keep_newest segments as-is (for fast writes)
+    ///   3. Result: 1 + keep_newest segments total
+    ///
+    /// For example with threshold=50, keep_newest=5:
+    ///   - Before: 50+ segments
+    ///   - Merge: 45 oldest segments → 1 merged segment
+    ///   - After: 1 + 5 = 6 segments
+    ///
+    /// # Parameters
+    /// - `ts`: Current timestamp for deletion filtering
+    ///
+    /// # Returns
+    /// - Number of segments merged (reduction count)
+    pub fn auto_merge_segments(&mut self, ts: Timestamp) -> usize {
+        if self.config.segment_merge_threshold == 0 {
+            return 0; // Auto-merge disabled
+        }
+
+        let mut total_merged = 0;
+        let min_snapshot_ts = self.mvcc.get_min_active_snapshot_ts();
+
+        // Check out-direction
+        if self.out_segments.len() >= self.config.segment_merge_threshold {
+            let to_merge_count = self.out_segments.len()
+                .saturating_sub(self.config.merge_keep_newest);
+            if to_merge_count > 1 {
+                let merge_indices: Vec<usize> = (0..to_merge_count).collect();
+                let merged = merge::merge_selected_segments_with_deletion_filter(
+                    &mut self.out_segments,
+                    merge_indices.clone(),
+                    ts,
+                    Some(min_snapshot_ts),
+                );
+                total_merged += merged;
+                if cfg!(debug_assertions) && merged > 0 {
+                    eprintln!(
+                        "[EdgeTable] Auto-merged {} segments in out direction. New count: {}",
+                        merged,
+                        self.out_segments.len()
+                    );
+                }
+            }
+        }
+
+        // Check in-direction
+        if self.in_segments.len() >= self.config.segment_merge_threshold {
+            let to_merge_count = self.in_segments.len()
+                .saturating_sub(self.config.merge_keep_newest);
+            if to_merge_count > 1 {
+                let merge_indices: Vec<usize> = (0..to_merge_count).collect();
+                let merged = merge::merge_selected_segments_with_deletion_filter(
+                    &mut self.in_segments,
+                    merge_indices.clone(),
+                    ts,
+                    Some(min_snapshot_ts),
+                );
+                total_merged += merged;
+                if cfg!(debug_assertions) && merged > 0 {
+                    eprintln!(
+                        "[EdgeTable] Auto-merged {} segments in in direction. New count: {}",
+                        merged,
+                        self.in_segments.len()
+                    );
+                }
+            }
+        }
+
+        // If any merges happened, rebuild indices
+        if total_merged > 0 {
+            self.rebuild_segment_indices();
+        }
+
+        total_merged
     }
 }

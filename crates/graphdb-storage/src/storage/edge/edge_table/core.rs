@@ -23,6 +23,17 @@ pub struct EdgeTableConfig {
     /// Write backpressure: max size of mutable CSR (in bytes) before triggering freeze.
     /// Set to 0 to disable. Typical value: 100MB (100 * 1024 * 1024).
     pub max_mutable_csr_bytes: usize,
+
+    /// Segment merge threshold: trigger auto-merge when segment count reaches this value.
+    /// Default: 50 segments per direction before merging oldest segments.
+    /// Set to 0 to disable auto-merge.
+    pub segment_merge_threshold: usize,
+
+    /// Merge behavior: how many segments to keep after merging.
+    /// When merging is triggered and segment count exceeds threshold,
+    /// keep only the N newest segments (others are merged).
+    /// Default: 5 (keeps 5 newest, merges the rest).
+    pub merge_keep_newest: usize,
 }
 
 impl Default for EdgeTableConfig {
@@ -33,6 +44,10 @@ impl Default for EdgeTableConfig {
             max_segments_per_direction: 100,
             // Default: 100MB per direction
             max_mutable_csr_bytes: 100 * 1024 * 1024,
+            // Auto-merge when segment count reaches 50 per direction
+            segment_merge_threshold: 50,
+            // Keep only 5 newest segments, merge the rest (oldest 45 become 1)
+            merge_keep_newest: 5,
         }
     }
 }
